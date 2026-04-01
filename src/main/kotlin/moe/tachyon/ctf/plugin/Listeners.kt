@@ -1,0 +1,162 @@
+package moe.tachyon.ctf.plugin
+
+import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.gameStatus
+import org.bukkit.Bukkit
+import org.bukkit.Location
+import org.bukkit.command.CommandSender
+import org.bukkit.entity.Player
+import org.bukkit.event.block.Action
+import org.bukkit.event.block.BlockBreakEvent
+import org.bukkit.event.block.BlockEvent
+import org.bukkit.event.block.BlockPhysicsEvent
+import org.bukkit.event.block.BlockPlaceEvent
+import org.bukkit.event.entity.EntityDamageEvent
+import org.bukkit.event.entity.EntityInteractEvent
+import org.bukkit.event.entity.EntityPickupItemEvent
+import org.bukkit.event.player.AsyncPlayerChatEvent
+import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerJoinEvent
+import org.bukkit.event.player.PlayerMoveEvent
+import org.bukkit.event.player.PlayerQuitEvent
+import org.bukkit.event.player.PlayerRespawnEvent
+import org.bukkit.event.player.PlayerSwapHandItemsEvent
+import org.bukkit.event.player.PlayerToggleSneakEvent
+import taboolib.common.LifeCycle
+import taboolib.common.platform.Awake
+import taboolib.common.platform.command.simpleCommand
+import taboolib.common.platform.event.EventPriority
+import taboolib.common.platform.event.SubscribeEvent
+import taboolib.common.platform.function.onlinePlayers
+import taboolib.common.platform.function.registerCommand
+import taboolib.platform.util.onlinePlayers
+import javax.swing.event.MenuEvent
+
+object Listeners
+{
+    @SubscribeEvent
+    fun onPlayerJoin(event: PlayerJoinEvent) = updateTeam()
+
+    @SubscribeEvent
+    fun onPlayerQuit(event: PlayerQuitEvent) = updateTeam()
+
+    @SubscribeEvent
+    fun onPlayerMove(event: PlayerMoveEvent)
+    {
+        val team = getPlayerTeam(event.player.name)
+        val from = event.from
+        val to = event.to ?: return
+
+        val targetStatus = when (team)
+        {
+            PlayerTeam.LEFT if gameStatus == GameStatus.IN_GAME  -> LocationStatus.IN_FIELD
+            PlayerTeam.RIGHT if gameStatus == GameStatus.IN_GAME -> LocationStatus.IN_FIELD
+            PlayerTeam.LEFT if gameStatus == GameStatus.PREPARING  -> LocationStatus.IN_LEFT_BASE
+            PlayerTeam.RIGHT if gameStatus == GameStatus.PREPARING -> LocationStatus.IN_RIGHT_BASE
+            PlayerTeam.NONE if (gameStatus == GameStatus.IN_GAME || gameStatus == GameStatus.PREPARING) -> LocationStatus.OUT_OF_FIELD
+            else                                                                                        -> return
+        }
+
+        if (targetStatus.contains(from) && !targetStatus.contains(to))
+        {
+            val targetLocation = Location(from.world, from.x, from.y, from.z, to.yaw, to.pitch)
+            event.player.teleport(targetLocation)
+        }
+        else if (!targetStatus.contains(from) && !targetStatus.contains(to))
+        {
+            val targetLocation = Location(targetStatus.location.world, targetStatus.location.x, targetStatus.location.y, targetStatus.location.z, to.yaw, to.pitch)
+            event.player.teleport(targetLocation)
+        }
+    }
+
+    @SubscribeEvent
+    fun onPlayerInteract(event: PlayerInteractEvent)
+    {
+        if (event.action != Action.PHYSICAL)
+            event.isCancelled = true
+    }
+
+    @SubscribeEvent
+    fun onEntityDamaged(event: EntityDamageEvent)
+    {
+        if (event.entity.isInvulnerable && GameRecord.isReplaying())
+            event.isCancelled = true
+    }
+
+    @SubscribeEvent
+    fun onPickupItem(event: EntityPickupItemEvent)
+    {
+        if (event.item.isInvulnerable && GameRecord.isReplaying())
+            event.isCancelled = true
+    }
+
+    @SubscribeEvent
+    fun onEntityInteract(event: EntityInteractEvent)
+    {
+        if (event.entity.isInvulnerable && GameRecord.isReplaying())
+            event.isCancelled = true
+    }
+
+    @SubscribeEvent(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    fun onBlockPlace(event: BlockPlaceEvent)
+    {
+        GameRecord.addBlock(event.block.location)
+    }
+
+    @SubscribeEvent(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    fun onBlockBreak(event: BlockBreakEvent)
+    {
+        GameRecord.addBlock(event.block.location)
+    }
+
+    // 劫持setblock命令，因为setblock命令不会触发方块事件但改变了方块
+    @Awake(LifeCycle.ENABLE)
+    fun replaceSetBlockCommand()
+    {
+        simpleCommand("setblock")
+        { sender, args ->
+            sender.performCommand("minecraft:setblock ${args.joinToString(" ")}")
+            val location = Location(Bukkit.getWorld(args[0]), args[1].toDouble(), args[2].toDouble(), args[3].toDouble())
+            GameRecord.addBlock(location)
+        }
+
+        simpleCommand("fill")
+        { sender, args ->
+            sender.performCommand("minecraft:fill ${args.joinToString(" ")}")
+            val world = Bukkit.getWorld(args[0])
+            val from = Location(world, args[1].toDouble(), args[2].toDouble(), args[3].toDouble())
+            val to = Location(world, args[4].toDouble(), args[5].toDouble(), args[6].toDouble())
+            for (x in from.blockX..to.blockX)
+                for (y in from.blockY..to.blockY)
+                    for (z in from.blockZ..to.blockZ)
+                        GameRecord.addBlock(Location(world, x.toDouble(), y.toDouble(), z.toDouble()))
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    fun onBlockPhysics(event: BlockPhysicsEvent)
+    {
+        GameRecord.addBlock(event.block.location)
+    }
+
+    @SubscribeEvent
+    fun onMenuOpen(event: PlayerSwapHandItemsEvent)
+    {
+        if (event.player.isOp && event.player.isSneaking)
+            event.player.openMainMenu()
+    }
+
+    @SubscribeEvent
+    fun onPlayerDeath(event: PlayerRespawnEvent)
+    {
+        if (gameStatus != GameStatus.IN_GAME) return
+        val player = event.player
+        val team = getPlayerTeam(player.name)
+        if (team == PlayerTeam.NONE) return
+        val prisonLocation = when (team)
+        {
+            PlayerTeam.LEFT -> LocationStatus.IN_LEFT_PRISON.location
+            PlayerTeam.RIGHT -> LocationStatus.IN_RIGHT_PRISON.location
+        }
+        event.respawnLocation = prisonLocation
+    }
+}
