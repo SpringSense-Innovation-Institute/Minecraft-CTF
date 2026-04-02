@@ -3,34 +3,19 @@ package moe.tachyon.ctf.plugin
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.gameStatus
 import org.bukkit.Bukkit
 import org.bukkit.Location
-import org.bukkit.command.CommandSender
-import org.bukkit.entity.Player
 import org.bukkit.event.block.Action
 import org.bukkit.event.block.BlockBreakEvent
-import org.bukkit.event.block.BlockEvent
 import org.bukkit.event.block.BlockPhysicsEvent
 import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.EntityInteractEvent
 import org.bukkit.event.entity.EntityPickupItemEvent
-import org.bukkit.event.entity.ItemSpawnEvent
-import org.bukkit.event.player.AsyncPlayerChatEvent
-import org.bukkit.event.player.PlayerInteractEvent
-import org.bukkit.event.player.PlayerJoinEvent
-import org.bukkit.event.player.PlayerMoveEvent
-import org.bukkit.event.player.PlayerQuitEvent
-import org.bukkit.event.player.PlayerRespawnEvent
-import org.bukkit.event.player.PlayerSwapHandItemsEvent
-import org.bukkit.event.player.PlayerToggleSneakEvent
+import org.bukkit.event.player.*
 import taboolib.common.LifeCycle
 import taboolib.common.platform.Awake
 import taboolib.common.platform.command.simpleCommand
 import taboolib.common.platform.event.EventPriority
 import taboolib.common.platform.event.SubscribeEvent
-import taboolib.common.platform.function.onlinePlayers
-import taboolib.common.platform.function.registerCommand
-import taboolib.platform.util.onlinePlayers
-import javax.swing.event.MenuEvent
 
 @SubscribeEvent
 private fun onPlayerJoin(event: PlayerJoinEvent) = updateTeam()

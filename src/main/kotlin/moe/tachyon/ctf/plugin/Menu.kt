@@ -17,10 +17,8 @@ import taboolib.module.ui.openMenu
 import taboolib.module.ui.type.Anvil
 import taboolib.module.ui.type.Chest
 import taboolib.module.ui.type.PageableChest
-import taboolib.platform.BukkitPlugin
 import taboolib.platform.util.buildItem
 import taboolib.platform.util.submit
-import java.io.File
 
 fun HumanEntity.openMainMenu(): Unit = openMenu<Chest>()
 {
