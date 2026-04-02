@@ -73,8 +73,7 @@ private fun onPickupItem(event: EntityPickupItemEvent)
 @SubscribeEvent
 private fun onEntityInteract(event: EntityInteractEvent)
 {
-    if (event.entity.isInvulnerable && GameRecord.isReplaying())
-        event.isCancelled = true
+    event.isCancelled = true
 }
 
 @SubscribeEvent(priority = EventPriority.MONITOR, ignoreCancelled = true)
