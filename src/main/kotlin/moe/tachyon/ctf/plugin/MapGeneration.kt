@@ -12,6 +12,8 @@ import org.bukkit.entity.Player
 import org.bukkit.util.BoundingBox
 import org.bukkit.util.Vector
 import taboolib.common.platform.function.onlinePlayers
+import taboolib.common.util.random
+import taboolib.common.util.randomDouble
 import taboolib.module.ai.*
 import taboolib.platform.util.isNotAir
 import taboolib.platform.util.toProxyLocation
@@ -140,6 +142,7 @@ fun generateMap()
             location.clone().add(0.0, 2.0, 0.0).block.type.isNotAir())
             continue@generateMushroom
         val e = location.world!!.spawnEntity(location.add(0.0, 1.0, 0.0), EntityType.MOOSHROOM) as MushroomCow
+        e.variant = if (randomDouble() < 0.5) MushroomCow.Variant.BROWN else MushroomCow.Variant.RED
         e.clearGoalAi()
         e.clearTargetAi()
         e.addTargetAi(CowAI(e), 1)
