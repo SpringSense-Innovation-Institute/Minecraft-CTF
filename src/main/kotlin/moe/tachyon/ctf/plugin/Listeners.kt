@@ -1,7 +1,6 @@
 package moe.tachyon.ctf.plugin
 
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.gameStatus
-import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.event.block.Action
 import org.bukkit.event.block.BlockBreakEvent
@@ -12,9 +11,6 @@ import org.bukkit.event.entity.EntityInteractEvent
 import org.bukkit.event.entity.EntityPickupItemEvent
 import org.bukkit.event.entity.ItemSpawnEvent
 import org.bukkit.event.player.*
-import taboolib.common.LifeCycle
-import taboolib.common.platform.Awake
-import taboolib.common.platform.command.simpleCommand
 import taboolib.common.platform.event.EventPriority
 import taboolib.common.platform.event.SubscribeEvent
 
@@ -56,7 +52,7 @@ private fun onPlayerMove(event: PlayerMoveEvent)
 @SubscribeEvent
 private fun onPlayerInteract(event: PlayerInteractEvent)
 {
-    if (event.action != Action.PHYSICAL && !event.player.isOp)
+    if (event.action != Action.PHYSICAL)
         event.isCancelled = true
 }
 
@@ -91,30 +87,6 @@ private fun onBlockPlace(event: BlockPlaceEvent)
 private fun onBlockBreak(event: BlockBreakEvent)
 {
     GameRecord.addBlock(event.block.location)
-}
-
-// 劫持setblock命令，因为setblock命令不会触发方块事件但改变了方块
-@Awake(LifeCycle.ENABLE)
-private fun replaceSetBlockCommand()
-{
-    simpleCommand("setblock")
-    { sender, args ->
-        sender.performCommand("minecraft:setblock ${args.joinToString(" ")}")
-        val location = Location(Bukkit.getWorld(args[0]), args[1].toDouble(), args[2].toDouble(), args[3].toDouble())
-        GameRecord.addBlock(location)
-    }
-
-    simpleCommand("fill")
-    { sender, args ->
-        sender.performCommand("minecraft:fill ${args.joinToString(" ")}")
-        val world = Bukkit.getWorld(args[0])
-        val from = Location(world, args[1].toDouble(), args[2].toDouble(), args[3].toDouble())
-        val to = Location(world, args[4].toDouble(), args[5].toDouble(), args[6].toDouble())
-        for (x in from.blockX..to.blockX)
-            for (y in from.blockY..to.blockY)
-                for (z in from.blockZ..to.blockZ)
-                    GameRecord.addBlock(Location(world, x.toDouble(), y.toDouble(), z.toDouble()))
-    }
 }
 
 @SubscribeEvent(priority = EventPriority.MONITOR, ignoreCancelled = true)
