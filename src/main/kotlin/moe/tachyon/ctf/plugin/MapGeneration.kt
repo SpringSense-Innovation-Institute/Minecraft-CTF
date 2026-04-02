@@ -1,11 +1,20 @@
 package moe.tachyon.ctf.plugin
 
+import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.gameStatus
+import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.playerCountPerGroup
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.randomMap
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.entity.EntityType
+import org.bukkit.entity.MushroomCow
+import org.bukkit.entity.Player
+import org.bukkit.util.BoundingBox
+import org.bukkit.util.Vector
+import taboolib.common.platform.function.onlinePlayers
+import taboolib.module.ai.*
 import taboolib.platform.util.isNotAir
+import taboolib.platform.util.toProxyLocation
 
 fun clearMap()
 {
@@ -28,6 +37,13 @@ fun clearMap()
                             location.clone().add(x.toDouble(), y.toDouble(), z.toDouble()).block.type = Material.AIR
             }
         }
+
+    val box = BoundingBox(-24.0, -64.0, -36.0, 24.0, 20.0, 36.0)
+    Bukkit.getWorld("world")?.getNearbyEntities(box)?.forEach()
+    {
+        if (it.type != EntityType.PLAYER)
+            it.remove()
+    }
 }
 
 fun generateMap()
@@ -65,10 +81,10 @@ fun generateMap()
             }
             list
         }
-        leftFlags += generate((-24..-1), (-36..36))
-        rightFlags += generate((1..24), (-36..36))
-        leftTarget += generate((-24..-1), (-36..36))
-        rightTarget += generate((1..24), (-36..36))
+        leftFlags += generate((-24..-12), (-36..36))
+        rightFlags += generate((12..24), (-36..36))
+        leftTarget += generate((-24..-12), (-36..36))
+        rightTarget += generate((12..24), (-36..36))
     }
 
     for (target in leftTarget + rightTarget)
@@ -114,16 +130,61 @@ fun generateMap()
 
     // 生成哞菇
     count = 0
-    generateMushroom@while (count < 4)
+    generateMushroom@while (count < playerCountPerGroup * 2)
     {
-        val x = (1..24).random() * if (count >= 2) -1 else 1
+        val x = (1..24).random() * if (count >= playerCountPerGroup) -1 else 1
         val z = (-36..36).random()
         val location = Location(Bukkit.getWorld("world"), x.toDouble(), 0.0, z.toDouble())
         if (location.block.type != Material.GRASS_BLOCK ||
             location.clone().add(0.0, 1.0, 0.0).block.type.isNotAir() ||
             location.clone().add(0.0, 2.0, 0.0).block.type.isNotAir())
             continue@generateMushroom
-        location.world!!.spawnEntity(location.add(0.0, 1.0, 0.0), EntityType.MOOSHROOM)
+        val e = location.world!!.spawnEntity(location.add(0.0, 1.0, 0.0), EntityType.MOOSHROOM) as MushroomCow
+        e.clearGoalAi()
+        e.clearTargetAi()
+        e.addTargetAi(CowAI(e), 1)
         count++
+    }
+}
+
+private class CowAI(
+    val cow: MushroomCow,
+): SimpleAi()
+{
+    private var sprinting = false
+    private var cooldown = false
+
+    override fun shouldExecute(): Boolean = gameStatus.inGame()
+
+    override fun continueExecute(): Boolean = gameStatus.inGame()
+
+    override fun resetTask() = Unit
+
+    override fun startTask() = Unit
+
+    override fun updateTask()
+    {
+        val target = onlinePlayers().minBy { it.location.distanceSquared(cow.location.toProxyLocation()) }
+
+        if (!sprinting && target.location.distanceSquared(cow.location.toProxyLocation()) < 16.0 && !cooldown)
+        {
+            sprinting = true
+        }
+        else if (target.location.distanceSquared(cow.location.toProxyLocation()) >= 25.0)
+        {
+            sprinting = false
+            cooldown = false
+        }
+
+        if (sprinting) cow.navigationMove(target.cast<Player>(), 3.0)
+        else cow.navigationMove(target.cast<Player>(), 1.0)
+
+        if (target.location.distanceSquared(cow.location.toProxyLocation()) < 1.0 && !cooldown)
+        {
+            val d = Vector(target.location.x - cow.location.x, 0.0, target.location.z - cow.location.z).normalize().multiply(0.8)
+            cow.velocity = d
+            cooldown = true
+            sprinting = false
+        }
     }
 }
