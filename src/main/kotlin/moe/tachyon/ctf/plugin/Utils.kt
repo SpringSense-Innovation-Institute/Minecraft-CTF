@@ -134,7 +134,7 @@ fun updateTeam()
 
     players.forEach()
     {
-        Listeners.onPlayerMove(PlayerMoveEvent(it.cast(), it.location.toBukkitLocation(), it.location.toBukkitLocation()))
+        Bukkit.getServer().pluginManager.callEvent(PlayerMoveEvent(it.cast(), it.location.toBukkitLocation(), it.location.toBukkitLocation()))
     }
 }
 

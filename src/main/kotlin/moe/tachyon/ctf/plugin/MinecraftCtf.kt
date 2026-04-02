@@ -1,6 +1,5 @@
 package moe.tachyon.ctf.plugin
 
-import org.bukkit.Bukkit
 import taboolib.common.platform.Plugin
 import taboolib.common.platform.function.info
 import taboolib.common.platform.function.warning
@@ -53,4 +52,6 @@ enum class GameStatus
     PREPARING,
     IN_GAME,
     ;
+
+    fun isGame() = this == IN_GAME
 }

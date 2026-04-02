@@ -5,22 +5,21 @@ import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.leftGroup
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.playerCountPerGroup
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.recordsFolder
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.rightGroup
-import org.bukkit.Bukkit
-import org.bukkit.GameMode
-import org.bukkit.Location
+import org.bukkit.*
+import org.bukkit.enchantments.Enchantment
+import org.bukkit.entity.Player
 import org.bukkit.event.player.AsyncPlayerChatEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import taboolib.common.platform.ProxyGameMode
 import taboolib.common.platform.event.SubscribeEvent
-import taboolib.common.platform.function.console
 import taboolib.common.platform.function.onlinePlayers
 import taboolib.common.platform.function.submit
 import taboolib.common.platform.service.PlatformExecutor
 import taboolib.module.chat.colored
-import taboolib.platform.util.isNotAir
+import taboolib.platform.util.buildItem
 import java.text.SimpleDateFormat
-import java.util.Date
+import java.util.*
 
 const val PLAYER_PREPARE_MESSAGE = "I'm ready!"
 const val GAME_START_MESSAGE = "Game start!"
@@ -40,7 +39,11 @@ fun prepareGame()
     preparedPlayers.clear()
     submit()
     {
-        onlinePlayers().forEach { it.gameMode = ProxyGameMode.CREATIVE }
+        onlinePlayers().forEach()
+        {
+            it.gameMode = ProxyGameMode.CREATIVE
+            it.cast<Player>().inventory.clear()
+        }
     }
 }
 
@@ -146,10 +149,49 @@ fun startGame()
             currentRecord = GameRecord.file(currentRecordFile!!).apply { start() }
             onlinePlayers().forEach()
             {
-                if (getPlayerTeam(it.name) != PlayerTeam.NONE)
+                val player = it.cast<Player>()
+                player.inventory.clear()
+                val team = getPlayerTeam(it.name)
+                if (team != PlayerTeam.NONE)
                 {
                     it.gameMode = ProxyGameMode.ADVENTURE
                     it.sendMessage(GAME_START_MESSAGE)
+                    if (team == PlayerTeam.LEFT)
+                    {
+                        player.inventory.chestplate = buildItem(Material.LEATHER_CHESTPLATE)
+                        {
+                            color = Color.RED
+                            enchants[Enchantment.BINDING_CURSE] = 1
+                        }
+                        player.inventory.leggings = buildItem(Material.LEATHER_LEGGINGS)
+                        {
+                            color = Color.RED
+                            enchants[Enchantment.BINDING_CURSE] = 1
+                        }
+                        player.inventory.boots = buildItem(Material.LEATHER_BOOTS)
+                        {
+                            color = Color.RED
+                            enchants[Enchantment.BINDING_CURSE] = 1
+                        }
+                    }
+                    else
+                    {
+                        player.inventory.chestplate = buildItem(Material.LEATHER_CHESTPLATE)
+                        {
+                            color = Color.BLUE
+                            enchants[Enchantment.BINDING_CURSE] = 1
+                        }
+                        player.inventory.leggings = buildItem(Material.LEATHER_LEGGINGS)
+                        {
+                            color = Color.BLUE
+                            enchants[Enchantment.BINDING_CURSE] = 1
+                        }
+                        player.inventory.boots = buildItem(Material.LEATHER_BOOTS)
+                        {
+                            color = Color.BLUE
+                            enchants[Enchantment.BINDING_CURSE] = 1
+                        }
+                    }
                 }
                 else
                 {
@@ -158,6 +200,7 @@ fun startGame()
 
                 it.sendTitle("&6$leftGroup VS $rightGroup 开始了!".colored(), "", 10, 70, 20)
             }
+            Bukkit.getServer().getWorld("world")?.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true)
         }
         val end = tick == 3L * 60 * 20
         val winner = getWinner(end = end)
@@ -189,8 +232,7 @@ fun stopGame(winner: PlayerTeam = getWinner(end = true)!!)
             it.sendMessage(GAME_END_MESSAGE)
     }
 
-    currentRecord?.stop()
-
+    val record = currentRecord!!
     val recordFile = currentRecordFile!!
 
     onlinePlayers().forEach()
@@ -199,9 +241,13 @@ fun stopGame(winner: PlayerTeam = getWinner(end = true)!!)
             it.sendMessage("&7游戏录像已保存至 &e${recordFile}.dat &7文件".colored())
     }
 
-    submit(async = true)
+    submit(async = true, delay = 5)
     {
-        uploadRecord(recordsFolder.resolve("$recordFile.dat"))
+        record.stop()
+        submit(async = true, delay = 5)
+        {
+            uploadRecord(recordsFolder.resolve("$recordFile.dat"))
+        }
     }
 
     currentRecord = null
@@ -223,25 +269,32 @@ fun stopGame(winner: PlayerTeam = getWinner(end = true)!!)
     }
 }
 
-private fun resetGameMap() = console().performCommand("function ctf:reset")
+private fun resetGameMap()
+{
+    clearMap()
+    generateMap()
+}
 
 private fun getWinner(end: Boolean): PlayerTeam?
 {
-    val rightFlagLocations = listOf(
-        Location(Bukkit.getWorld("world"), 22.0, 2.0, 5.0),
-        Location(Bukkit.getWorld("world"), 22.0, 2.0, 9.0),
-        Location(Bukkit.getWorld("world"), 22.0, 2.0, 13.0),
-        Location(Bukkit.getWorld("world"), 22.0, 2.0, 17.0),
-        Location(Bukkit.getWorld("world"), 22.0, 2.0, 21.0),
-        Location(Bukkit.getWorld("world"), 22.0, 2.0, 25.0),
-        Location(Bukkit.getWorld("world"), 22.0, 2.0, 29.0),
-        Location(Bukkit.getWorld("world"), 22.0, 2.0, 33.0),
-    )
+    var leftCount = 0
+    var rightCount = 0
 
-    val leftFlagLocations = rightFlagLocations.map { Location(Bukkit.getWorld("world"), -22.0, 2.0, it.z) }
-
-    val leftCount = leftFlagLocations.count { it.block.type.isNotAir() }
-    val rightCount = rightFlagLocations.count { it.block.type.isNotAir() }
+    for (x in -22..22)
+    {
+        for (z in -36..36)
+        {
+            val location = Location(Bukkit.getWorld("world"), x.toDouble(), 0.0, z.toDouble())
+            if (location.block.type == Material.GOLD_BLOCK)
+            {
+                val flagLocation = location.clone().add(0.0, 2.0, 0.0)
+                if (flagLocation.block.type == Material.BLUE_BANNER)
+                    leftCount++
+                else if (flagLocation.block.type == Material.RED_BANNER)
+                    rightCount++
+            }
+        }
+    }
 
     if (end)
     {
