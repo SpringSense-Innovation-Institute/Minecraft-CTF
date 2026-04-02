@@ -6,6 +6,7 @@ import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.randomMap
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
+import org.bukkit.block.data.Bisected
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.MushroomCow
 import org.bukkit.entity.Player
@@ -14,6 +15,7 @@ import org.bukkit.util.Vector
 import taboolib.common.platform.function.onlinePlayers
 import taboolib.common.util.randomDouble
 import taboolib.module.ai.*
+import taboolib.module.navigation.isWater
 import taboolib.platform.util.isNotAir
 import taboolib.platform.util.toProxyLocation
 
@@ -129,6 +131,27 @@ fun generateMap()
         count++
     }
 
+    // 生成pitcher plant
+    count = 0
+    generatePitcher@while (count < 10)
+    {
+        val x = (1..24).random() * if (count >= 5) -1 else 1
+        val z = (-36..36).random()
+        val location = Location(Bukkit.getWorld("world"), x.toDouble(), 0.0, z.toDouble())
+        if (location.block.type != Material.GRASS_BLOCK ||
+            location.clone().add(0.0, 1.0, 0.0).block.type.isNotAir() ||
+            location.clone().add(0.0, 2.0, 0.0).block.type.isNotAir())
+            continue@generatePitcher
+
+        location.clone().add(0.0, 1.0, 0.0).block.blockData =
+            Bukkit.createBlockData(Material.PITCHER_PLANT).let { it as Bisected }.also { it.half = Bisected.Half.BOTTOM }
+
+        location.clone().add(0.0, 2.0, 0.0).block.blockData =
+            Bukkit.createBlockData(Material.PITCHER_PLANT).let { it as Bisected }.also { it.half = Bisected.Half.TOP }
+
+        count++
+    }
+
     // 生成哞菇
     count = 0
     generateMushroom@while (count < playerCountPerGroup * 2)
@@ -145,6 +168,17 @@ fun generateMap()
         e.clearGoalAi()
         e.clearTargetAi()
         e.addTargetAi(CowAI(e), 1)
+        count++
+    }
+
+    // 生成发光鱿鱼
+    count = 0
+    generateSquid@while (count < 5)
+    {
+        val z = (-36..36).random()
+        val location = Location(Bukkit.getWorld("world"), 0.5, -1.0, z.toDouble())
+        if (!location.block.type.isWater()) continue@generateSquid
+        location.world!!.spawnEntity(location, EntityType.GLOW_SQUID)
         count++
     }
 }
