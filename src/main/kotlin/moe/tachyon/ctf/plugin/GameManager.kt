@@ -156,41 +156,22 @@ fun startGame()
                 {
                     it.gameMode = ProxyGameMode.ADVENTURE
                     it.sendMessage(GAME_START_MESSAGE)
-                    if (team == PlayerTeam.LEFT)
+                    val color = if (team == PlayerTeam.LEFT) Color.RED else Color.BLUE
+
+                    player.inventory.chestplate = buildItem(Material.LEATHER_CHESTPLATE)
                     {
-                        player.inventory.chestplate = buildItem(Material.LEATHER_CHESTPLATE)
-                        {
-                            color = Color.RED
-                            enchants[Enchantment.BINDING_CURSE] = 1
-                        }
-                        player.inventory.leggings = buildItem(Material.LEATHER_LEGGINGS)
-                        {
-                            color = Color.RED
-                            enchants[Enchantment.BINDING_CURSE] = 1
-                        }
-                        player.inventory.boots = buildItem(Material.LEATHER_BOOTS)
-                        {
-                            color = Color.RED
-                            enchants[Enchantment.BINDING_CURSE] = 1
-                        }
+                        this.color = color
+                        enchants[Enchantment.BINDING_CURSE] = 1
                     }
-                    else
+                    player.inventory.leggings = buildItem(Material.LEATHER_LEGGINGS)
                     {
-                        player.inventory.chestplate = buildItem(Material.LEATHER_CHESTPLATE)
-                        {
-                            color = Color.BLUE
-                            enchants[Enchantment.BINDING_CURSE] = 1
-                        }
-                        player.inventory.leggings = buildItem(Material.LEATHER_LEGGINGS)
-                        {
-                            color = Color.BLUE
-                            enchants[Enchantment.BINDING_CURSE] = 1
-                        }
-                        player.inventory.boots = buildItem(Material.LEATHER_BOOTS)
-                        {
-                            color = Color.BLUE
-                            enchants[Enchantment.BINDING_CURSE] = 1
-                        }
+                        this.color = color
+                        enchants[Enchantment.BINDING_CURSE] = 1
+                    }
+                    player.inventory.boots = buildItem(Material.LEATHER_BOOTS)
+                    {
+                        this.color = color
+                        enchants[Enchantment.BINDING_CURSE] = 1
                     }
                 }
                 else
@@ -225,18 +206,15 @@ fun stopGame(winner: PlayerTeam = getWinner(end = true)!!)
     }
 
     gameStatus = GameStatus.NONE
-    onlinePlayers().forEach()
-    {
-        it.gameMode = ProxyGameMode.CREATIVE
-        if (getPlayerTeam(it.name) != PlayerTeam.NONE)
-            it.sendMessage(GAME_END_MESSAGE)
-    }
 
     val record = currentRecord!!
     val recordFile = currentRecordFile!!
 
     onlinePlayers().forEach()
     {
+        it.gameMode = ProxyGameMode.CREATIVE
+        if (getPlayerTeam(it.name) != PlayerTeam.NONE)
+            it.sendMessage(GAME_END_MESSAGE)
         if (it.isOp)
             it.sendMessage("&7游戏录像已保存至 &e${recordFile}.dat &7文件".colored())
     }
