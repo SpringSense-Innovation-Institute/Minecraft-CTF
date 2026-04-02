@@ -39,6 +39,11 @@ fun clearMap()
                         for (z in -1..1)
                             location.clone().add(x.toDouble(), y.toDouble(), z.toDouble()).block.type = Material.AIR
             }
+            else if (location.clone().add(0.0, 1.0, 0.0).block.type == Material.PITCHER_PLANT)
+            {
+                location.clone().add(0.0, 2.0, 0.0).block.type = Material.AIR
+                location.clone().add(0.0, 1.0, 0.0).block.type = Material.AIR
+            }
         }
 
     val box = BoundingBox(-24.0, -64.0, -36.0, 24.0, 20.0, 36.0)
