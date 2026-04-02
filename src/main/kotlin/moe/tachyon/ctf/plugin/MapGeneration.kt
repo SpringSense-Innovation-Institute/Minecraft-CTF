@@ -12,7 +12,6 @@ import org.bukkit.entity.Player
 import org.bukkit.util.BoundingBox
 import org.bukkit.util.Vector
 import taboolib.common.platform.function.onlinePlayers
-import taboolib.common.util.random
 import taboolib.common.util.randomDouble
 import taboolib.module.ai.*
 import taboolib.platform.util.isNotAir
@@ -167,7 +166,9 @@ private class CowAI(
 
     override fun updateTask()
     {
-        val target = onlinePlayers().minBy { it.location.distanceSquared(cow.location.toProxyLocation()) }
+        val target = onlinePlayers()
+            .filter { getPlayerTeam(it.name) != PlayerTeam.NONE }
+            .minBy { it.location.distanceSquared(cow.location.toProxyLocation()) }
 
         if (!sprinting && target.location.distanceSquared(cow.location.toProxyLocation()) < 16.0 && !cooldown)
         {
