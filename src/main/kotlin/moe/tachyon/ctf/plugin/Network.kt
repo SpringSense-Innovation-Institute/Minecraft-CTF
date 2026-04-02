@@ -12,7 +12,7 @@ import java.net.Socket
 
 private inline fun <T> withConnection(block: (input: DataInputStream, output: DataOutputStream) -> T): T
 {
-    Socket("127.0.0.1", 9898).use()
+    Socket("ctf.zhichun.org", 9898).use()
     { socket ->
         val input = DataInputStream(socket.getInputStream())
         val output = DataOutputStream(socket.getOutputStream())

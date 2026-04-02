@@ -192,7 +192,7 @@ class GameRecord(
         val input = DataInputStream(inputStream())
 
         period = input.readLong()
-        val startTime = input.readLong()
+        input.readLong() // start time, currently unused
 
         val entityPool = mutableMapOf<Short, Entity>()
 
@@ -228,10 +228,10 @@ class GameRecord(
             val entityCount = input.readShort()
             if (entityCount.toInt() == -1) return@submit
 
-            for (i in 0 until entityCount)
+            repeat(entityCount.toInt())
             {
                 val id = input.readShort()
-                if (id.toInt() == -1) continue
+                if (id.toInt() == -1) return@repeat
 
                 if (!entityPool.containsKey(id))
                 {
@@ -285,7 +285,7 @@ class GameRecord(
             }
 
             val blockCount = input.readShort()
-            for (i in 0 until blockCount)
+            repeat(blockCount.toInt())
             {
                 val x = input.readByte().toInt()
                 val y = input.readByte().toInt()
