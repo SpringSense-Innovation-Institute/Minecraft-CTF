@@ -253,19 +253,14 @@ fun stopGame(winner: PlayerTeam = getWinner(end = true)!!)
     currentRecord = null
     currentRecordFile = null
 
-    if (winner == PlayerTeam.NONE)
+    onlinePlayers().forEach()
     {
-        onlinePlayers().forEach()
-        {
+        if (winner == PlayerTeam.NONE)
             it.sendTitle("&6$leftGroup 与 $rightGroup 平局!".colored(), "", 10, 70, 20)
-        }
-    }
-    else
-    {
-        onlinePlayers().forEach()
-        {
+        else
             it.sendTitle("&6${if (winner == PlayerTeam.LEFT) leftGroup else rightGroup} 队获胜!".colored(), "", 10, 70, 20)
-        }
+
+        it.cast<Player>().inventory.clear()
     }
 }
 
