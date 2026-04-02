@@ -53,5 +53,5 @@ enum class GameStatus
     IN_GAME,
     ;
 
-    fun isGame() = this == IN_GAME
+    fun inGame() = this == IN_GAME
 }

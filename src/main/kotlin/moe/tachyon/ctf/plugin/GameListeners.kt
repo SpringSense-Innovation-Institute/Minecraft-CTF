@@ -11,10 +11,13 @@ import org.bukkit.event.player.PlayerRespawnEvent
 import taboolib.common.platform.event.SubscribeEvent
 import taboolib.platform.util.buildItem
 
+private fun Material?.isBanner(): Boolean =
+    this == Material.BLUE_BANNER || this == Material.RED_BANNER
+
 @SubscribeEvent
 private fun onPlayerPickupFlag(event: PlayerMoveEvent)
 {
-    if (!gameStatus.isGame()) return
+    if (!gameStatus.inGame()) return
     val player = event.player
     val team = getPlayerTeam(player.name)
     if (team == PlayerTeam.NONE) return
@@ -22,25 +25,19 @@ private fun onPlayerPickupFlag(event: PlayerMoveEvent)
     if (location.block.type != Material.WAXED_COPPER_BLOCK) return
     if (location.clone().add(0.0, 1.0, 0.0).block.type != Material.OAK_FENCE) return
     if (location.clone().add(0.0, 2.0, 0.0).block.type != if (team == PlayerTeam.LEFT) Material.BLUE_BANNER else Material.RED_BANNER) return
-    if (player.inventory.helmet?.type == Material.LEATHER_HELMET) return
+    if (player.inventory.helmet?.type.isBanner()) return
 
     location.block.type = Material.GRASS_BLOCK
     location.clone().add(0.0, 2.0, 0.0).block.type = Material.AIR
     location.clone().add(0.0, 1.0, 0.0).block.type = Material.AIR
 
-    val cap = buildItem(Material.LEATHER_HELMET)
-    {
-        color = if (team == PlayerTeam.LEFT) Color.BLUE else Color.RED
-        enchants[Enchantment.BINDING_CURSE] = 1
-    }
-
-    player.inventory.helmet = cap
+    player.inventory.helmet = if (team == PlayerTeam.LEFT) buildItem(Material.BLUE_BANNER) else buildItem(Material.RED_BANNER)
 }
 
 @SubscribeEvent
 private fun onPlayerSetFlag(event: PlayerMoveEvent)
 {
-    if (!gameStatus.isGame()) return
+    if (!gameStatus.inGame()) return
     val player = event.player
     val team = getPlayerTeam(player.name)
     if (team == PlayerTeam.NONE) return
@@ -48,7 +45,7 @@ private fun onPlayerSetFlag(event: PlayerMoveEvent)
     if (location.block.type != Material.GOLD_BLOCK) return
     if (location.clone().add(0.0, 1.0, 0.0).block.type != Material.AIR) return
     if (location.clone().add(0.0, 2.0, 0.0).block.type != Material.AIR) return
-    if (player.inventory.helmet?.type != Material.LEATHER_HELMET) return
+    if (!player.inventory.helmet?.type.isBanner()) return
 
     val field = if (team == PlayerTeam.LEFT) LocationStatus.IN_LEFT_FIELD else LocationStatus.IN_RIGHT_FIELD
     if (!field.contains(location)) return
@@ -62,7 +59,7 @@ private fun onPlayerSetFlag(event: PlayerMoveEvent)
 @SubscribeEvent
 private fun onPlayerCaught(event: PlayerMoveEvent)
 {
-    if (!gameStatus.isGame()) return
+    if (!gameStatus.inGame()) return
     val player = event.player
     val team = getPlayerTeam(player.name)
     if (team == PlayerTeam.NONE) return
@@ -113,7 +110,7 @@ private fun onPlayerDeath(event: PlayerRespawnEvent)
 
 private fun onPlayerDropFlag(player: Player)
 {
-    if (player.inventory.helmet?.type != Material.LEATHER_HELMET) return
+    if (!player.inventory.helmet?.type.isBanner()) return
     val team = getPlayerTeam(player.name)
     if (team == PlayerTeam.NONE) return
     for (range in 0..20)
