@@ -10,6 +10,7 @@ import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.EntityInteractEvent
 import org.bukkit.event.entity.EntityPickupItemEvent
+import org.bukkit.event.entity.ItemSpawnEvent
 import org.bukkit.event.player.*
 import taboolib.common.LifeCycle
 import taboolib.common.platform.Awake
@@ -89,7 +90,6 @@ private fun onBlockPlace(event: BlockPlaceEvent)
 @SubscribeEvent(priority = EventPriority.MONITOR, ignoreCancelled = true)
 private fun onBlockBreak(event: BlockBreakEvent)
 {
-    event.isDropItems = false
     GameRecord.addBlock(event.block.location)
 }
 
@@ -128,4 +128,10 @@ private fun onMenuOpen(event: PlayerSwapHandItemsEvent)
 {
     if (event.player.isOp && event.player.isSneaking)
         event.player.openMainMenu()
+}
+
+@SubscribeEvent
+private fun onDropItem(event: ItemSpawnEvent)
+{
+    event.isCancelled = true
 }
