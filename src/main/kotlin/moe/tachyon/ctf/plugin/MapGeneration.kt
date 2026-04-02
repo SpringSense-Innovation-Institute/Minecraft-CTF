@@ -4,6 +4,7 @@ import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.randomMap
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
+import org.bukkit.entity.EntityType
 import taboolib.platform.util.isNotAir
 
 fun clearMap()
@@ -86,6 +87,7 @@ fun generateMap()
         Location(Bukkit.getWorld("world"), flag.first.toDouble(), 2.0, flag.second.toDouble()).block.type = Material.BLUE_BANNER
 
     // 生成树
+    count = 0
     generateTree@while (count < 10)
     {
         val x = (1..24).random() * if (count >= 5) -1 else 1
@@ -107,6 +109,21 @@ fun generateMap()
         for (y in 1..high+1)
             location.clone().add(0.0, y.toDouble(), 0.0).block.type = Material.OAK_LOG
 
+        count++
+    }
+
+    // 生成哞菇
+    count = 0
+    generateMushroom@while (count < 4)
+    {
+        val x = (1..24).random() * if (count >= 2) -1 else 1
+        val z = (-36..36).random()
+        val location = Location(Bukkit.getWorld("world"), x.toDouble(), 0.0, z.toDouble())
+        if (location.block.type != Material.GRASS_BLOCK ||
+            location.clone().add(0.0, 1.0, 0.0).block.type.isNotAir() ||
+            location.clone().add(0.0, 2.0, 0.0).block.type.isNotAir())
+            continue@generateMushroom
+        location.world!!.spawnEntity(location.add(0.0, 1.0, 0.0), EntityType.MOOSHROOM)
         count++
     }
 }
