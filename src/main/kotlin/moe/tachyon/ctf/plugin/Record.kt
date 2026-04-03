@@ -321,7 +321,6 @@ class GameRecord(
         fun file(world: () -> GameWorld, file: File, period: Long = 1): GameRecord
         {
             if (!file.parentFile.exists()) file.parentFile.mkdirs()
-            file.createNewFile()
             return GameRecord(
                 world = world,
                 file = file,
