@@ -177,6 +177,10 @@ private fun onPlayerMatch(event: AsyncPlayerChatEvent)
             else          -> return
         }
 
+        if (count <= 0) return
+        if (enemyMode is Enemy.Group && enemyMode.groupId == group) return
+        if (enemyMode is Enemy.Group && enemyMode.groupId < 0) return
+
         addToWaitList(
             playerName = event.player.name,
             setting = MatchSetting(
