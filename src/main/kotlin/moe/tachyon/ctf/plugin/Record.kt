@@ -37,13 +37,15 @@ class GameRecord(
     private val blocks = ConcurrentHashMap.newKeySet<Location>()
     private val world by lazy(LazyThreadSafetyMode.SYNCHRONIZED, world)
 
+    private val tmpFile = File(file.absolutePath + ".tmp")
+
     fun start()
     {
         if (!running.compareAndSet(expectedValue = false, newValue = true) || done.load()) return
 
         file.parentFile.mkdirs()
-        if (!file.exists()) file.createNewFile()
-        val output = DataOutputStream(file.outputStream())
+        if (tmpFile.exists()) tmpFile.delete()
+        val output = DataOutputStream(tmpFile.outputStream())
 
         output.writeLong(period)
         output.writeLong(System.currentTimeMillis())
@@ -58,6 +60,9 @@ class GameRecord(
                 output.writeShort(-1)
                 output.flush()
                 output.close()
+
+                file.delete()
+                tmpFile.renameTo(file)
 
                 task?.cancel()
 
