@@ -35,7 +35,7 @@ object Commands
     {
         execute<Player>()
         { sender, _, _ ->
-            sender.openMainMenu()
+            sender.openMenu()
         }
     }
 
@@ -75,15 +75,6 @@ fun registerMenuCommand()
     { sender, _ ->
         if (sender !is ProxyPlayer) return@simpleCommand
         val player = sender.cast<Player>()
-        if (sender.isOp)
-        {
-            if (player.world == Bukkit.getWorld("world"))
-                return@simpleCommand player.openMainMenu()
-        }
-
-        if (player.world == Bukkit.getWorld("world"))
-            player.chooseWorldMenu()
-        else
-            player.openWorldMenu()
+        player.openMenu()
     }
 }

@@ -276,7 +276,7 @@ class GameWorld(
 
                     player.sendTitle("&6$leftGroupNumber VS $rightGroupNumber 开始了!".colored(), "", 10, 70, 20)
                 }
-                Bukkit.getServer().getWorld("world")?.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true)
+                bukkitWorld().setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true)
             }
             val end = tick == 3L * 60 * 20
             val winner = getWinner(end = end)
@@ -343,6 +343,7 @@ class GameWorld(
         val leftTeamPlayer = getPlayers().count { it in leftGroupPlayers }
         val rightTeamPlayer = getPlayers().count { it in rightGroupPlayers }
 
+        if (leftTeamPlayer == 0 && rightTeamPlayer == 0) return PlayerTeam.NONE
         if (leftTeamPlayer == 0 && leftGroupNumber != 0) return PlayerTeam.RIGHT
         if (rightTeamPlayer == 0 && rightGroupNumber != 0) return PlayerTeam.LEFT
 

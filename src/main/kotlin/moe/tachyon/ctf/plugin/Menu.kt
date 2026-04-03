@@ -15,7 +15,13 @@ import taboolib.module.ui.type.PageableChest
 import taboolib.platform.util.buildItem
 import taboolib.platform.util.submit
 
-fun HumanEntity.openMainMenu(): Unit = openMenu<Chest>()
+fun HumanEntity.openMenu()
+{
+    if (world == Bukkit.getWorld("world")) openMainMenu()
+    else openWorldMenu()
+}
+
+private fun HumanEntity.openMainMenu(): Unit = openMenu<Chest>()
 {
     title = "CTF 管理菜单"
     rows(5)
@@ -30,14 +36,14 @@ fun HumanEntity.openMainMenu(): Unit = openMenu<Chest>()
     set('#', buildItem(Material.GRAY_STAINED_GLASS_PANE) { name = " " }) { }
     set('X', buildItem(Material.BARRIER) { name = "关闭" }) { clicker.closeInventory() }
 
-    set('A', buildItem(Material.RED_WOOL) { name = "游戏管理" })
+    if (isOp) set('B', buildItem(Material.RED_WOOL) { name = "游戏管理" })
     {
         context(GameSettingData())
         {
             clicker.openGameSettingsMenu()
         }
     }
-    set('C', buildItem(Material.BLUE_WOOL) { name = "回放管理" })
+    set('A', buildItem(Material.BLUE_WOOL) { name = "回放管理" })
     {
         context(GameSettingData())
         {
@@ -45,13 +51,13 @@ fun HumanEntity.openMainMenu(): Unit = openMenu<Chest>()
         }
     }
 
-    set('B', buildItem(Material.ORANGE_WOOL) { name = "进入已有世界" })
+    set('C', buildItem(Material.ORANGE_WOOL) { name = "进入已有世界" })
     {
         clicker.chooseWorldMenu()
     }
 }
 
-fun HumanEntity.openWorldMenu()
+private fun HumanEntity.openWorldMenu()
 {
     val world = getGameWorld(world.name) ?: return openMainMenu()
     openMenu<Chest>()
@@ -107,12 +113,12 @@ fun HumanEntity.openWorldMenu()
     }
 }
 
-fun HumanEntity.chooseWorldMenu(): Unit = openMenu<PageableChest<GameWorld>>()
+private fun HumanEntity.chooseWorldMenu(): Unit = openMenu<PageableChest<GameWorld>>()
 {
     title = "选择世界"
     rows(6)
     map(
-        "########X",
+        "<#######X",
         "#@@@@@@@#",
         "#@@@@@@@#",
         "#@@@@@@@#",
@@ -124,6 +130,7 @@ fun HumanEntity.chooseWorldMenu(): Unit = openMenu<PageableChest<GameWorld>>()
     set('#', buildItem(Material.GRAY_STAINED_GLASS_PANE) { name = " " }) { }
     set('X', buildItem(Material.BARRIER) { name = "关闭" }) { clicker.closeInventory() }
     set('R', buildItem(Material.COMPASS) { name = "刷新" }) { clicker.chooseWorldMenu() }
+    set('<', buildItem(Material.ARROW) { name = "返回" }) { clicker.openMainMenu() }
 
     slotsBy('@')
 
@@ -169,7 +176,7 @@ fun HumanEntity.chooseWorldMenu(): Unit = openMenu<PageableChest<GameWorld>>()
 }
 
 context(data: GameSettingData)
-fun HumanEntity.openGameSettingsMenu(): Unit = openMenu<Chest>()
+private fun HumanEntity.openGameSettingsMenu(): Unit = openMenu<Chest>()
 {
     title = "游戏设置"
     rows(5)
@@ -196,7 +203,7 @@ fun HumanEntity.openGameSettingsMenu(): Unit = openMenu<Chest>()
 }
 
 context(data: GameSettingData)
-fun HumanEntity.openPlayerGroupingMenu()
+private fun HumanEntity.openPlayerGroupingMenu()
 {
     openMenu<Chest>()
     {
@@ -232,7 +239,7 @@ fun HumanEntity.openPlayerGroupingMenu()
 }
 
 context(data: GameSettingData)
-fun HumanEntity.openMapSettingsMenu()
+private fun HumanEntity.openMapSettingsMenu()
 {
     openMenu<Chest>()
     {
@@ -263,7 +270,7 @@ fun HumanEntity.openMapSettingsMenu()
 }
 
 context(data: GameSettingData)
-fun HumanEntity.openGroupInputMenu(team: PlayerTeam): Unit = openMenu<Anvil>()
+private fun HumanEntity.openGroupInputMenu(team: PlayerTeam): Unit = openMenu<Anvil>()
 {
     title = if (team == PlayerTeam.LEFT) "输入红队组号" else "输入蓝队组号"
     set(0, buildItem(Material.PAPER) { name = if (team == PlayerTeam.LEFT) "${data.leftGroupNumber}" else "${data.rightGroupNumber}" })
@@ -308,7 +315,7 @@ fun HumanEntity.openGroupInputMenu(team: PlayerTeam): Unit = openMenu<Anvil>()
 }
 
 context(data: GameSettingData)
-fun HumanEntity.openPlayerCountInputMenu(): Unit = openMenu<Anvil>()
+private fun HumanEntity.openPlayerCountInputMenu(): Unit = openMenu<Anvil>()
 {
     title = "输入每组玩家人数"
     set(0, buildItem(Material.PAPER) { name = "${data.playerCountPerGroup}" })
@@ -350,7 +357,7 @@ fun HumanEntity.openPlayerCountInputMenu(): Unit = openMenu<Anvil>()
 }
 
 context(data: GameSettingData)
-fun HumanEntity.openGameControlMenu(): Unit = openMenu<Chest>()
+private fun HumanEntity.openGameControlMenu(): Unit = openMenu<Chest>()
 {
     title = "游戏控制"
     rows(5)
@@ -378,7 +385,7 @@ fun HumanEntity.openGameControlMenu(): Unit = openMenu<Chest>()
     }
 }
 
-fun HumanEntity.openReplaySettingsMenu()
+private fun HumanEntity.openReplaySettingsMenu()
 {
     submit(async = true)
     {

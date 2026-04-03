@@ -119,16 +119,8 @@ private fun onBlockPhysics(event: BlockPhysicsEvent)
 @SubscribeEvent
 private fun onMenuOpen(event: PlayerSwapHandItemsEvent)
 {
-    if (event.player.isOp && event.player.isSneaking)
-    {
-        if (event.player.world == Bukkit.getWorld("world"))
-            return event.player.openMainMenu()
-    }
-
-    if (event.player.world == Bukkit.getWorld("world"))
-        event.player.chooseWorldMenu()
-    else
-        event.player.openWorldMenu()
+    if (event.player.isSneaking)
+        event.player.openMenu()
 }
 
 @SubscribeEvent
