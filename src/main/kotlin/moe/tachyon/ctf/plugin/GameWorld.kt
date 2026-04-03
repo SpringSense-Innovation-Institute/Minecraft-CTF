@@ -237,6 +237,7 @@ class GameWorld(
             {
                 resetGameMap()
                 record.start()
+                bukkitWorld().difficulty = Difficulty.HARD
                 getPlayers().forEach()
                 {
                     val player = Bukkit.getPlayer(it) ?: return@forEach

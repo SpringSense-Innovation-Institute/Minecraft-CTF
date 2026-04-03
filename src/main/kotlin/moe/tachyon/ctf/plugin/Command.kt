@@ -1,6 +1,5 @@
 package moe.tachyon.ctf.plugin
 
-import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.entity.Player
 import taboolib.common.LifeCycle

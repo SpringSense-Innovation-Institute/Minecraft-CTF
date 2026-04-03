@@ -5,6 +5,7 @@ import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.event.entity.FoodLevelChangeEvent
 import org.bukkit.event.player.AsyncPlayerChatEvent
+import org.bukkit.event.player.PlayerItemDamageEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerRespawnEvent
 import taboolib.common.platform.event.SubscribeEvent
@@ -162,7 +163,7 @@ private fun canDropFlag(location: Location): Boolean
 }
 
 @SubscribeEvent
-fun onPlayerMessage(event: AsyncPlayerChatEvent)
+private fun onPlayerMessage(event: AsyncPlayerChatEvent)
 {
     if (event.message == PLAYER_PREPARE_MESSAGE)
     {
@@ -172,8 +173,14 @@ fun onPlayerMessage(event: AsyncPlayerChatEvent)
 }
 
 @SubscribeEvent
-fun onFoodChange(event: FoodLevelChangeEvent)
+private fun onFoodChange(event: FoodLevelChangeEvent)
 {
     if (event.foodLevel < 7)
         event.foodLevel = 7
+}
+
+@SubscribeEvent
+fun onItemDamage(event: PlayerItemDamageEvent)
+{
+    event.isCancelled = true
 }

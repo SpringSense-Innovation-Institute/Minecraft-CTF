@@ -206,7 +206,7 @@ class GameRecord(
         {
             if (init)
             {
-                world.bukkitWorld().difficulty = Difficulty.EASY
+                world.bukkitWorld().difficulty = Difficulty.HARD
                 init = false
                 for (x in mapBox.min.blockX..mapBox.max.blockX)
                     for (y in mapBox.min.blockY..mapBox.max.blockY)
