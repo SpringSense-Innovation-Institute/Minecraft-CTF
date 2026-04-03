@@ -15,7 +15,9 @@ import taboolib.module.chat.colored
 import taboolib.module.nms.ItemTag
 import taboolib.module.nms.getItemTag
 import taboolib.module.nms.setItemTag
-import java.io.*
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.File
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.atomics.AtomicBoolean
@@ -23,23 +25,25 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 @OptIn(ExperimentalAtomicApi::class)
 class GameRecord(
-    private val outputStream: () -> OutputStream,
-    private val inputStream: () -> InputStream,
+    world: () -> GameWorld,
+    val file: File,
     private var period: Long = 1
 )
 {
     private val running = AtomicBoolean(false)
     private val done = AtomicBoolean(false)
-
-    val world = Bukkit.getWorld("world")!!
     private var task: PlatformExecutor.PlatformTask? = null
+    // 发生变化的方块
+    private val blocks = ConcurrentHashMap.newKeySet<Location>()
+    private val world by lazy(LazyThreadSafetyMode.SYNCHRONIZED, world)
 
     fun start()
     {
-        if (recording.load() || !running.compareAndSet(expectedValue = false, newValue = true) || done.load()) return
-        recording.store(true)
+        if (!running.compareAndSet(expectedValue = false, newValue = true) || done.load()) return
 
-        val output = DataOutputStream(outputStream())
+        file.parentFile.mkdirs()
+        if (!file.exists()) file.createNewFile()
+        val output = DataOutputStream(file.outputStream())
 
         output.writeLong(period)
         output.writeLong(System.currentTimeMillis())
@@ -60,7 +64,7 @@ class GameRecord(
                 return@submit
             }
 
-            val entities = world.getNearbyEntities(box)
+            val entities = world.bukkitWorld().getNearbyEntities(box)
             output.writeShort((entities.map { it.uniqueId } + entityPool.keys).distinct().size)
             for (entity in entities)
             {
@@ -85,9 +89,9 @@ class GameRecord(
                     if (entity.type == EntityType.PLAYER)
                     {
                         val player = entity as Player
-                        if (getPlayerTeam(player.name) == PlayerTeam.LEFT)
+                        if (world.getPlayerTeam(player.name) == PlayerTeam.LEFT)
                             output.writeUTF("&c${player.name}".colored())
-                        else if (getPlayerTeam(player.name) == PlayerTeam.RIGHT)
+                        else if (world.getPlayerTeam(player.name) == PlayerTeam.RIGHT)
                             output.writeUTF("&b${player.name}".colored())
                         else
                             output.writeUTF(player.name)
@@ -152,18 +156,18 @@ class GameRecord(
             }
 
             val blocks = blocks.toMutableSet()
-            GameRecord.blocks.clear()
+            this@GameRecord.blocks.clear()
 
             if (init)
             {
                 init = false
-                val s = mapBox.min.toLocation(world)
-                val e = mapBox.max.toLocation(world)
+                val s = Location(world.bukkitWorld(), mapBox.min.x, mapBox.min.y, mapBox.min.z)
+                val e = Location(world.bukkitWorld(), mapBox.max.x, mapBox.max.y, mapBox.max.z)
                 for (x in s.blockX..e.blockX)
                     for (y in s.blockY..e.blockY)
                         for (z in s.blockZ..e.blockZ)
-                            if (world.getBlockAt(x, y, z).blockData.material != Material.AIR)
-                                blocks += Location(world, x.toDouble(), y.toDouble(), z.toDouble())
+                            if (world.bukkitWorld().getBlockAt(x, y, z).blockData.material != Material.AIR)
+                                blocks += Location(world.bukkitWorld(), x.toDouble(), y.toDouble(), z.toDouble())
             }
 
             output.writeShort(blocks.size)
@@ -181,15 +185,15 @@ class GameRecord(
     {
         if (!done.compareAndSet(expectedValue = false, newValue = true)) return
         running.store(false)
-        recording.store(false)
     }
 
     fun replay()
     {
         if (running.load()) return
-        if (!replaying.compareAndSet(expectedValue = false, newValue = true)) return
 
-        val input = DataInputStream(inputStream())
+        world.gameStatus = GameStatus.REPLAYING
+
+        val input = DataInputStream(file.inputStream())
 
         period = input.readLong()
         input.readLong() // start time, currently unused
@@ -200,28 +204,26 @@ class GameRecord(
 
         task = submit(period = period)
         {
-            if (!replaying.load()) return@submit
-
             if (init)
             {
-                Bukkit.getWorld("world")!!.difficulty = Difficulty.EASY
+                world.bukkitWorld().difficulty = Difficulty.EASY
                 init = false
                 for (x in mapBox.min.blockX..mapBox.max.blockX)
                     for (y in mapBox.min.blockY..mapBox.max.blockY)
                         for (z in mapBox.min.blockZ..mapBox.max.blockZ)
-                            world.getBlockAt(x, y, z).blockData = Bukkit.createBlockData(Material.AIR)
-                world.getNearbyEntities(box).forEach { runCatching { it.remove() } } // player会remove失败，忽略它
+                            world.bukkitWorld().getBlockAt(x, y, z).blockData = Bukkit.createBlockData(Material.AIR)
+                world.bukkitWorld().getNearbyEntities(box).forEach { runCatching { it.remove() } } // player会remove失败，忽略它
             }
 
             if (input.available() == 0)
             {
                 input.close()
-                replaying.store(false)
                 task?.cancel()
                 entityPool.forEach()
                 {
                     it.value.remove()
                 }
+                world.gameStatus = GameStatus.NONE
                 return@submit
             }
 
@@ -240,7 +242,7 @@ class GameRecord(
                         EntityType.PLAYER ->
                         {
                             val name = input.readUTF()
-                            val player = world.spawnEntity(Location(world, 0.0, -64.0, 0.0), EntityType.CREEPER) as Creeper
+                            val player = world.bukkitWorld().spawnEntity(Location(world.bukkitWorld(), 0.0, -64.0, 0.0), EntityType.CREEPER) as Creeper
                             player.customName = name
                             player.isCustomNameVisible = true
                             player
@@ -253,11 +255,11 @@ class GameRecord(
                             val itemStack = ItemStack(material, amount)
                             val itemTagJson = input.readUTF()
                             itemStack.setItemTag(ItemTag.fromJson(itemTagJson))
-                            val item = world.dropItem(Location(world, 0.0, -64.0, 0.0), itemStack)
+                            val item = world.bukkitWorld().dropItem(Location(world.bukkitWorld(), 0.0, -64.0, 0.0), itemStack)
                             item
                         }
 
-                        else -> world.spawnEntity(Location(world, 0.0, -64.0, 0.0), type)
+                        else -> world.bukkitWorld().spawnEntity(Location(world.bukkitWorld(), 0.0, -64.0, 0.0), type)
                     }
                     if (entity is LivingEntity)
                     {
@@ -280,7 +282,7 @@ class GameRecord(
                 val vy = input.readFloat()
                 val vz = input.readFloat()
 
-                entity.teleport(Location(world, x.toDouble(), y.toDouble(), z.toDouble(), yaw, pitch))
+                entity.teleport(Location(world.bukkitWorld(), x.toDouble(), y.toDouble(), z.toDouble(), yaw, pitch))
                 entity.velocity = Vector(vx, vy, vz)
             }
 
@@ -291,7 +293,7 @@ class GameRecord(
                 val y = input.readByte().toInt()
                 val z = input.readByte().toInt()
                 val blockData = input.readUTF()
-                world.getBlockAt(x, y, z).blockData = Bukkit.createBlockData(blockData)
+                world.bukkitWorld().getBlockAt(x, y, z).blockData = Bukkit.createBlockData(blockData)
             }
         }
     }
@@ -301,30 +303,23 @@ class GameRecord(
         val box = BoundingBox(-24.0, -4.0, -36.0, 24.0, 10.0, 36.0)
         val mapBox = BoundingBox(-24.0, -4.0, -36.0, 24.0, 10.0, 36.0)
 
-        // 发生变化的方块
-        private val blocks = ConcurrentHashMap.newKeySet<Location>()
-
         fun addBlock(location: Location)
         {
-            if (mapBox.contains(location.toVector()) && recording.load())
-                blocks += location
+            val record = location.world?.name?.let { getGameWorld(it) }?.record ?: return
+            if (record.running.load() && mapBox.contains(location.toVector()))
+                record.blocks += location
         }
 
-        private val replaying = AtomicBoolean(false)
-        private val recording = AtomicBoolean(false)
+        fun file(world: () -> GameWorld, name: String, period: Long = 1): GameRecord =
+            file(world, File(recordsFolder, "$name.dat"), period)
 
-        fun isReplaying(): Boolean = replaying.load()
-
-        fun file(name: String, period: Long = 1): GameRecord =
-            file(File(recordsFolder, "$name.dat"), period)
-
-        fun file(file: File, period: Long = 1): GameRecord
+        fun file(world: () -> GameWorld, file: File, period: Long = 1): GameRecord
         {
             if (!file.parentFile.exists()) file.parentFile.mkdirs()
             file.createNewFile()
             return GameRecord(
-                outputStream = { file.outputStream() },
-                inputStream = { file.inputStream() },
+                world = world,
+                file = file,
                 period = period,
             )
         }

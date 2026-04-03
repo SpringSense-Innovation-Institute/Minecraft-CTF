@@ -2,10 +2,13 @@ package moe.tachyon.ctf.plugin
 
 import org.bukkit.Bukkit
 import org.bukkit.Location
-import org.bukkit.event.player.PlayerMoveEvent
-import taboolib.common.platform.function.onlinePlayers
-import taboolib.common.platform.function.severe
-import taboolib.platform.util.toBukkitLocation
+import org.bukkit.World
+import org.bukkit.entity.HumanEntity
+import taboolib.common.platform.function.submit
+import taboolib.platform.util.title
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 
 enum class LocationStatus
 {
@@ -20,15 +23,15 @@ enum class LocationStatus
     OUT_OF_FIELD,
     ;
 
-    val location: Location get() = when (this)
+    fun location(world: GameWorld): Location = when (this)
     {
-        IN_LEFT_FIELD, IN_LEFT_BASE -> Location(Bukkit.getWorld("world"), -21.5, 1.0, 0.5)
-        IN_RIGHT_FIELD, IN_RIGHT_BASE -> Location(Bukkit.getWorld("world"), 22.5, 1.0, 0.5)
-        IN_LEFT_PRISON -> Location(Bukkit.getWorld("world"), -15.5, 1.0, 28.5)
-        IN_RIGHT_PRISON -> Location(Bukkit.getWorld("world"), 16.5, 1.0, 28.5)
-        IN_CENTER -> Location(Bukkit.getWorld("world"), 0.5, 1.0, 0.5)
-        IN_FIELD -> Location(Bukkit.getWorld("world"), 0.5, 1.0, 0.5)
-        OUT_OF_FIELD -> Location(Bukkit.getWorld("world"), -35.5, 1.0, 0.5)
+        IN_LEFT_FIELD, IN_LEFT_BASE -> Location(world.bukkitWorld(), -21.5, 1.0, 0.5)
+        IN_RIGHT_FIELD, IN_RIGHT_BASE -> Location(world.bukkitWorld(), 22.5, 1.0, 0.5)
+        IN_LEFT_PRISON -> Location(world.bukkitWorld(), -15.5, 1.0, 28.5)
+        IN_RIGHT_PRISON -> Location(world.bukkitWorld(), 16.5, 1.0, 28.5)
+        IN_CENTER -> Location(world.bukkitWorld(), 0.5, 1.0, 0.5)
+        IN_FIELD -> Location(world.bukkitWorld(), 0.5, 1.0, 0.5)
+        OUT_OF_FIELD -> Location(world.bukkitWorld(), -35.5, 1.0, 0.5)
     }
 
     fun contains(location: Location): Boolean
@@ -38,15 +41,15 @@ enum class LocationStatus
         val z = location.blockZ
         return when (this)
         {
-            OUT_OF_FIELD -> x !in -24..24 || z !in -36..36 || y !in -64..20 || location.world?.name != "world"
-            IN_LEFT_FIELD -> x in -24..-1 && z in -36..36 && y in -64..20 && location.world?.name == "world"
-            IN_RIGHT_FIELD -> x in 1..24 && z in -36..36 && y in -64..20 && location.world?.name == "world"
-            IN_LEFT_BASE -> x in -23..-21 && z in -1..1 && y in -64..20 && location.world?.name == "world"
-            IN_RIGHT_BASE -> x in 21..23 && z in -1..1 && y in -64..20 && location.world?.name == "world"
-            IN_LEFT_PRISON -> x in -18..-14 && z in 26..30 && y in -64..20 && location.world?.name == "world"
-            IN_RIGHT_PRISON -> x in 14..18 && z in 26..30 && y in -64..20 && location.world?.name == "world"
-            IN_CENTER -> x == 0 && z in -36..36 && y in -64..20 && location.world?.name == "world"
-            IN_FIELD -> x in -24..24 && z in -36..36 && y in -64..20 && location.world?.name == "world"
+            OUT_OF_FIELD -> x !in -24..24 || z !in -36..36 || y !in -64..20
+            IN_LEFT_FIELD -> x in -24..-1 && z in -36..36 && y in -64..20
+            IN_RIGHT_FIELD -> x in 1..24 && z in -36..36 && y in -64..20
+            IN_LEFT_BASE -> x in -23..-21 && z in -1..1 && y in -64..20
+            IN_RIGHT_BASE -> x in 21..23 && z in -1..1 && y in -64..20
+            IN_LEFT_PRISON -> x in -18..-14 && z in 26..30 && y in -64..20
+            IN_RIGHT_PRISON -> x in 14..18 && z in 26..30 && y in -64..20
+            IN_CENTER -> x == 0 && z in -36..36 && y in -64..20
+            IN_FIELD -> x in -24..24 && z in -36..36 && y in -64..20
         }
     }
 }
@@ -78,79 +81,61 @@ fun locationStatus(location: Location): LocationStatus
     }
 }
 
-/**
- * 更新玩家所属队伍
- */
-fun updateTeam()
-{
-    if (MinecraftCtfPlugin.gameStatus == GameStatus.IN_GAME) return
-    val scoreboard = Bukkit.getScoreboardManager()?.mainScoreboard
-    if (scoreboard == null)
-    {
-        severe("无法获取主计分板!")
-        return
-    }
-    val players = onlinePlayers()
-    players.forEach()
-    {
-        val team = scoreboard.getEntryTeam(it.name)
-        if (it.name.startsWith("CTF-${MinecraftCtfPlugin.leftGroup}-"))
-        {
-            if (team?.name != "L")
-            {
-                team?.removeEntry(it.name)
-                val leftTeam = scoreboard.getTeam("L") ?: scoreboard.registerNewTeam("L")
-                leftTeam.addEntry(it.name)
-            }
-        }
-        else if (it.name.startsWith("CTF-${MinecraftCtfPlugin.rightGroup}-"))
-        {
-            if (team?.name != "R")
-            {
-                team?.removeEntry(it.name)
-                val rightTeam = scoreboard.getTeam("R") ?: scoreboard.registerNewTeam("R")
-                rightTeam.addEntry(it.name)
-            }
-        }
-    }
-    scoreboard.teams.forEach()
-    {
-        if (it.name !in listOf("L", "R")) it.unregister()
-    }
-    (scoreboard.getTeam("L") ?: scoreboard.registerNewTeam("L")).entries.forEach()
-    {
-        if (!it.startsWith("CTF-${MinecraftCtfPlugin.leftGroup}-") || players.none { player -> player.name == it })
-        {
-            scoreboard.getTeam("L")?.removeEntry(it)
-        }
-    }
-    (scoreboard.getTeam("R") ?: scoreboard.registerNewTeam("R")).entries.forEach()
-    {
-        if (!it.startsWith("CTF-${MinecraftCtfPlugin.rightGroup}-") || players.none { player -> player.name == it })
-        {
-            scoreboard.getTeam("R")?.removeEntry(it)
-        }
-    }
+data class GameSettingData(
+    var leftGroupNumber: Int = 1,
+    var rightGroupNumber: Int = 1,
+    var playerCountPerGroup: Int = 1,
+    var randomMap: Boolean = true,
+)
 
-    players.forEach()
+private fun randomId() = (System.currentTimeMillis()%0x1000000).toString(16)
+
+fun HumanEntity.replayRecord(file: File)
+{
+    var world: GameWorld? = null
+    val record = GameRecord.file({ world!! }, file)
+    world = generateGameWorld(
+        name = "replay-${file.nameWithoutExtension}-${randomId()}",
+        setting = GameSettingData(),
+        record = record,
+    )
+
+    world.gameStatus = GameStatus.REPLAYING
+    val location = Location(world.bukkitWorld(), 0.5, 1.0, 0.5)
+    teleport(location)
+    var count = 10
+    submit(period = 20)
     {
-        Bukkit.getServer().pluginManager.callEvent(PlayerMoveEvent(it.cast(), it.location.toBukkitLocation(), it.location.toBukkitLocation()))
+        world.getPlayers().forEach()
+        {
+            val player = Bukkit.getPlayer(it) ?: return@forEach
+            player.title("§e即将开始回放 $count", "", 0, 20, 0)
+        }
+        count--
+        if (count <= 0)
+        {
+            cancel()
+            record.replay()
+        }
     }
 }
 
-/**
- * 判断一个玩家属于哪个队伍
- * @param playerName 玩家名称
- * @return 如果玩家属于左边队伍，则返回-1，如果玩家属于右边队伍，则返回1，否则返回0
- */
-fun getPlayerTeam(playerName: String): PlayerTeam
+fun createGame(data: GameSettingData): GameWorld
 {
-    val scoreboard = Bukkit.getScoreboardManager()?.mainScoreboard ?: return PlayerTeam.NONE
-    val team = scoreboard.getEntryTeam(playerName) ?: return PlayerTeam.NONE
-    return when (team.name)
-    {
-        "L"  -> PlayerTeam.LEFT
-        "R"  -> PlayerTeam.RIGHT
-        else -> PlayerTeam.NONE
-    }
+    var world: GameWorld? = null
+    val date = Date()
+    val format = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss")
+    val record = GameRecord.file({ world!! }, "${format.format(date)}_${data.leftGroupNumber}vs${data.rightGroupNumber}_${randomId()}")
+    world = generateGameWorld(
+        "game-${data.leftGroupNumber}vs${data.rightGroupNumber}-${randomId()}",
+        data,
+        record,
+    )
+    world.prepareGame()
+    return world
+}
+
+fun HumanEntity.teleportToWorld(world: World = Bukkit.getWorld("world")!!)
+{
+    teleport(Location(world, 0.5, 1.0, 0.5))
 }

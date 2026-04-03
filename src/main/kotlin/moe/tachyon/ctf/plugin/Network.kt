@@ -2,9 +2,6 @@ package moe.tachyon.ctf.plugin
 
 import moe.tachyon.ctf.common.MAGIC_NUMBER
 import moe.tachyon.ctf.common.PROTOCOL_VERSION
-import moe.tachyon.ctf.common.RequestPacketType
-import moe.tachyon.ctf.common.ResponsePacketType
-import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.recordsFolder
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
@@ -35,7 +32,10 @@ private inline fun <T> withConnection(block: (input: DataInputStream, output: Da
     }
 }
 
-fun uploadRecord(file: File) = withConnection()
+fun uploadRecord(file: File) = Unit
+
+/*
+= withConnection()
 { input, output ->
     output.writeByte(RequestPacketType.UPLOAD_RECORD.toInt())
     output.writeUTF(file.nameWithoutExtension)
@@ -45,8 +45,13 @@ fun uploadRecord(file: File) = withConnection()
         it.copyTo(output)
     }
 }
+ */
 
-fun getRecords(): List<Pair<String, Long>> = withConnection()
+
+fun getRecords(): List<Pair<String, Long>> = emptyList()
+
+/*
+= withConnection()
 { input, output ->
     output.writeByte(RequestPacketType.GET_RECORDS.toInt())
     val packetType = input.readUnsignedByte().toUByte()
@@ -70,8 +75,12 @@ fun getRecords(): List<Pair<String, Long>> = withConnection()
     }
     records
 }
+ */
 
-fun downloadRecord(fileName: String, onProgress: (cur: Long, tot: Long) -> Unit) = withConnection()
+fun downloadRecord(fileName: String, onProgress: (cur: Long, tot: Long) -> Unit): Unit = error("Disabled")
+
+/*
+= withConnection()
 { input, output ->
     output.writeByte(RequestPacketType.DOWNLOAD_RECORD.toInt())
     output.writeUTF(fileName)
@@ -107,3 +116,4 @@ fun downloadRecord(fileName: String, onProgress: (cur: Long, tot: Long) -> Unit)
         }
     }
 }
+ */

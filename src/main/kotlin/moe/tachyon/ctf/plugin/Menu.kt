@@ -1,11 +1,6 @@
 package moe.tachyon.ctf.plugin
 
-import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.gameStatus
-import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.leftGroup
-import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.playerCountPerGroup
-import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.randomMap
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.recordsFolder
-import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.rightGroup
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.boss.BarColor
@@ -27,7 +22,7 @@ fun HumanEntity.openMainMenu(): Unit = openMenu<Chest>()
     map(
         "########X",
         "#       #",
-        "#  A B  #",
+        "# A B C #",
         "#       #",
         "#########"
     )
@@ -35,10 +30,145 @@ fun HumanEntity.openMainMenu(): Unit = openMenu<Chest>()
     set('#', buildItem(Material.GRAY_STAINED_GLASS_PANE) { name = " " }) { }
     set('X', buildItem(Material.BARRIER) { name = "关闭" }) { clicker.closeInventory() }
 
-    set('A', buildItem(Material.RED_WOOL) { name = "游戏管理" }) { clicker.openGameSettingsMenu() }
-    set('B', buildItem(Material.BLUE_WOOL) { name = "回放管理" }) { clicker.openReplaySettingsMenu() }
+    set('A', buildItem(Material.RED_WOOL) { name = "游戏管理" })
+    {
+        context(GameSettingData())
+        {
+            clicker.openGameSettingsMenu()
+        }
+    }
+    set('C', buildItem(Material.BLUE_WOOL) { name = "回放管理" })
+    {
+        context(GameSettingData())
+        {
+            clicker.openReplaySettingsMenu()
+        }
+    }
+
+    set('B', buildItem(Material.ORANGE_WOOL) { name = "进入已有世界" })
+    {
+        clicker.chooseWorldMenu()
+    }
 }
 
+fun HumanEntity.openWorldMenu()
+{
+    val world = getGameWorld(world.name) ?: return openMainMenu()
+    openMenu<Chest>()
+    {
+        title = "世界导航"
+        rows(1)
+        if (isOp) map("  A   B  ")
+        else      map("    A    ")
+
+        set('A', buildItem(Material.GREEN_WOOL) { name = "回到主世界" })
+        {
+            clicker.closeInventory()
+            clicker.teleportToWorld()
+        }
+
+        if (!isOp) return@openMenu
+
+        if (world.gameStatus.preparing())
+        {
+            set('B', buildItem(Material.RED_WOOL)
+            {
+                name = "游戏准备中"
+                lore += "若所有玩家离开，游戏将被自动取消"
+            }) { }
+        }
+        else if (world.gameStatus.inGame())
+        {
+            set('B', buildItem(Material.RED_WOOL)
+            {
+                name = "游戏进行中"
+                lore += "点击结束游戏"
+            })
+            {
+                clicker.closeInventory()
+                world.stopGame()
+            }
+        }
+        else if (world.gameStatus.replaying())
+        {
+            set('B', buildItem(Material.RED_WOOL)
+            {
+                name = "回放进行中"
+            }) { }
+        }
+        else /* world.gameStatus == NONE */
+        {
+            set('B', buildItem(Material.RED_WOOL)
+            {
+                name = "等待回收"
+                lore += "世界已闲置，等待所有玩家离开后将被回收"
+            }) { }
+        }
+    }
+}
+
+fun HumanEntity.chooseWorldMenu(): Unit = openMenu<PageableChest<GameWorld>>()
+{
+    title = "选择世界"
+    rows(6)
+    map(
+        "########X",
+        "#@@@@@@@#",
+        "#@@@@@@@#",
+        "#@@@@@@@#",
+        "#@@@@@@@#",
+        "##P#R#N##"
+    )
+    elements { getGameWorlds() }
+
+    set('#', buildItem(Material.GRAY_STAINED_GLASS_PANE) { name = " " }) { }
+    set('X', buildItem(Material.BARRIER) { name = "关闭" }) { clicker.closeInventory() }
+    set('R', buildItem(Material.COMPASS) { name = "刷新" }) { clicker.chooseWorldMenu() }
+
+    slotsBy('@')
+
+    setPreviousPage(47)
+    { page, hasPreviousPage ->
+        buildItem(if (hasPreviousPage) Material.GREEN_STAINED_GLASS_PANE else Material.RED_STAINED_GLASS_PANE)
+        {
+            name = if (hasPreviousPage) "上一页(${page})" else "没有上一页了"
+        }
+    }
+
+    setNextPage(51)
+    { page, hasNextPage ->
+        buildItem(if (hasNextPage) Material.GREEN_STAINED_GLASS_PANE else Material.RED_STAINED_GLASS_PANE)
+        {
+            name = if (hasNextPage) "下一页(${page + 2})" else "没有下一页了"
+        }
+    }
+
+    onGenerate()
+    { _, element, _, _ ->
+        buildItem(Material.PAPER)
+        {
+            name = element.name
+            lore += "世界状态: ${when (element.gameStatus)
+            {
+                GameStatus.REPLAYING -> "正在回放对局"
+                GameStatus.PREPARING -> "正在准备对局"
+                GameStatus.IN_GAME -> "对局进行中"
+                GameStatus.NONE -> "等待被回收"
+            }}"
+            lore += "红队组号: ${element.leftGroupNumber}"
+            lore += "蓝队组号: ${element.rightGroupNumber}"
+        }
+    }
+
+
+    onClick()
+    { event, element ->
+        event.clicker.closeInventory()
+        event.clicker.teleport(LocationStatus.IN_FIELD.location(element))
+    }
+}
+
+context(data: GameSettingData)
 fun HumanEntity.openGameSettingsMenu(): Unit = openMenu<Chest>()
 {
     title = "游戏设置"
@@ -57,21 +187,17 @@ fun HumanEntity.openGameSettingsMenu(): Unit = openMenu<Chest>()
     set('A', buildItem(Material.PLAYER_HEAD)
     {
         name = "玩家分组"
-        lore += "&c当前红队组号: $leftGroup".colored()
-        lore += "&9当前蓝队组号: $rightGroup".colored()
-        lore += "每组玩家人数: $playerCountPerGroup"
+        lore += "&c当前红队组号: ${data.leftGroupNumber}".colored()
+        lore += "&9当前蓝队组号: ${data.rightGroupNumber}".colored()
+        lore += "每组玩家人数: ${data.playerCountPerGroup}".colored()
     }) { clicker.openPlayerGroupingMenu() }
     set('B', buildItem(Material.MAP) { name = "地图设置" }) { clicker.openMapSettingsMenu() }
     set('C', buildItem(Material.COMPASS) { name = "游戏控制" }) { clicker.openGameControlMenu() }
 }
 
+context(data: GameSettingData)
 fun HumanEntity.openPlayerGroupingMenu()
 {
-    if (gameStatus != GameStatus.NONE)
-    {
-        sendMessage("当前游戏状态为 ${gameStatus.name}，无法修改玩家分组!")
-        return closeInventory()
-    }
     openMenu<Chest>()
     {
         title = "玩家分组设置"
@@ -90,29 +216,24 @@ fun HumanEntity.openPlayerGroupingMenu()
         set('A', buildItem(Material.RED_WOOL)
         {
             name = "红队"
-            lore += "当前组号: $leftGroup"
+            lore += "当前组号: ${data.leftGroupNumber}"
         }) { clicker.openGroupInputMenu(PlayerTeam.LEFT) }
         set('B', buildItem(Material.BLUE_WOOL)
         {
             name = "蓝队"
-            lore += "当前组号: $rightGroup"
+            lore += "当前组号: ${data.rightGroupNumber}"
         }) { clicker.openGroupInputMenu(PlayerTeam.RIGHT) }
         set('C', buildItem(Material.OMINOUS_TRIAL_KEY)
         {
             name = "每组玩家人数"
-            lore += "当前设置: $playerCountPerGroup"
+            lore += "当前设置: ${data.playerCountPerGroup}"
         }) { clicker.openPlayerCountInputMenu() }
     }
 }
 
+context(data: GameSettingData)
 fun HumanEntity.openMapSettingsMenu()
 {
-    if (gameStatus != GameStatus.NONE)
-    {
-        sendMessage("当前游戏状态为 ${gameStatus.name}，无法修改玩家分组!")
-        return closeInventory()
-    }
-
     openMenu<Chest>()
     {
         title = "地图设置"
@@ -121,32 +242,34 @@ fun HumanEntity.openMapSettingsMenu()
 
         set('A', buildItem(Material.GRASS_BLOCK)
         {
-            name = if (randomMap) "随机地图 (当前)" else "随机地图"
-            if (randomMap) enchants[Enchantment.MENDING] = 1
+            name = if (data.randomMap) "随机地图 (当前)" else "随机地图"
+            if (data.randomMap) enchants[Enchantment.MENDING] = 1
         })
         {
-            randomMap = true
+            data.randomMap = true
             clicker.openGameSettingsMenu()
         }
 
         set('B', buildItem(Material.OAK_SIGN)
         {
-            name = if (!randomMap) "固定地图 (当前)" else "固定地图"
-            if (!randomMap) enchants[Enchantment.MENDING] = 1
+            name = if (!data.randomMap) "固定地图 (当前)" else "固定地图"
+            if (!data.randomMap) enchants[Enchantment.MENDING] = 1
         })
         {
-            randomMap = false
+            data.randomMap = false
             clicker.openGameSettingsMenu()
         }
     }
 }
 
+context(data: GameSettingData)
 fun HumanEntity.openGroupInputMenu(team: PlayerTeam): Unit = openMenu<Anvil>()
 {
     title = if (team == PlayerTeam.LEFT) "输入红队组号" else "输入蓝队组号"
-    set(0, buildItem(Material.PAPER) { name = if (team == PlayerTeam.LEFT) "$leftGroup" else "$rightGroup" })
+    set(0, buildItem(Material.PAPER) { name = if (team == PlayerTeam.LEFT) "${data.leftGroupNumber}" else "${data.rightGroupNumber}" })
 
-    onRename { player, text, inventory ->
+    onRename()
+    { player, text, inventory ->
         if (text.toIntOrNull() == null)
         {
             inventory.setItem(2, buildItem(Material.RED_STAINED_GLASS_PANE)
@@ -169,9 +292,9 @@ fun HumanEntity.openGroupInputMenu(team: PlayerTeam): Unit = openMenu<Anvil>()
         if (text?.toIntOrNull() == null)
             return@onClick it.inventory.setItem(2, buildItem(Material.RED_STAINED_GLASS_PANE) { name = "请输入一个有效的整数!" })
         if (team == PlayerTeam.LEFT)
-            leftGroup = text.toInt()
+            data.leftGroupNumber = text.toInt()
         else
-            rightGroup = text.toInt()
+            data.rightGroupNumber = text.toInt()
         it.clicker.openPlayerGroupingMenu()
     }
     
@@ -184,12 +307,14 @@ fun HumanEntity.openGroupInputMenu(team: PlayerTeam): Unit = openMenu<Anvil>()
     }
 }
 
+context(data: GameSettingData)
 fun HumanEntity.openPlayerCountInputMenu(): Unit = openMenu<Anvil>()
 {
     title = "输入每组玩家人数"
-    set(0, buildItem(Material.PAPER) { name = "$playerCountPerGroup" })
+    set(0, buildItem(Material.PAPER) { name = "${data.playerCountPerGroup}" })
 
-    onRename { player, text, inventory ->
+    onRename()
+    { player, text, inventory ->
         if (text.toIntOrNull() == null)
         {
             inventory.setItem(2, buildItem(Material.RED_STAINED_GLASS_PANE)
@@ -211,7 +336,7 @@ fun HumanEntity.openPlayerCountInputMenu(): Unit = openMenu<Anvil>()
         val text = it.inventory.getItem(2)?.itemMeta?.displayName
         if (text?.toIntOrNull() == null)
             return@onClick it.inventory.setItem(2, buildItem(Material.RED_STAINED_GLASS_PANE) { name = "请输入一个有效的整数!" })
-        playerCountPerGroup = text.toInt()
+        data.playerCountPerGroup = text.toInt()
         it.clicker.openPlayerGroupingMenu()
     }
 
@@ -224,6 +349,7 @@ fun HumanEntity.openPlayerCountInputMenu(): Unit = openMenu<Anvil>()
     }
 }
 
+context(data: GameSettingData)
 fun HumanEntity.openGameControlMenu(): Unit = openMenu<Chest>()
 {
     title = "游戏控制"
@@ -240,67 +366,15 @@ fun HumanEntity.openGameControlMenu(): Unit = openMenu<Chest>()
     set('X', buildItem(Material.BARRIER) { name = "关闭" }) { clicker.closeInventory() }
     set('<', buildItem(Material.ARROW) { name = "返回" }) { clicker.openGameSettingsMenu() }
 
-    onClick('A')
+    set('A', buildItem(Material.GREEN_WOOL)
     {
-        when (gameStatus)
-        {
-            GameStatus.NONE      -> prepareGame()
-            GameStatus.PREPARING -> stopGame(PlayerTeam.NONE)
-            GameStatus.IN_GAME   -> stopGame()
-        }
-    }
-
-    onBuild()
-    { _, inventory ->
-        submit(period = 1)
-        {
-            if (inventory.viewers.isEmpty()) return@submit cancel()
-            val slot = getFirstSlot('A')
-            when (gameStatus)
-            {
-                GameStatus.NONE      ->
-                {
-                    inventory.setItem(slot, buildItem(Material.GREEN_WOOL) { name = "准备开始" })
-                }
-                GameStatus.PREPARING ->
-                {
-                    inventory.setItem(slot, buildItem(Material.RED_WOOL)
-                    {
-                        name = "等待玩家就绪中...(点击取消)"
-                        val status = getPlayersPreparedStatus()
-                        lore += "当前状态: ${
-                            if (status.leftPlayerCount < playerCountPerGroup)
-                                "红队玩家不足(${status.leftPlayerCount}/$playerCountPerGroup)"
-                            else if (status.rightPlayerCount < playerCountPerGroup)
-                                "蓝队玩家不足(${status.rightPlayerCount}/$playerCountPerGroup)"
-                            else if (status.leftPlayerCount > playerCountPerGroup)
-                                "红队玩家过多(${status.leftPlayerCount}/$playerCountPerGroup)"
-                            else if (status.rightPlayerCount > playerCountPerGroup)
-                                "蓝队玩家过多(${status.rightPlayerCount}/$playerCountPerGroup)"
-                            else if (status.leftGroupUnprepared.isNotEmpty() || status.rightGroupUnprepared.isNotEmpty())
-                                "等待玩家就绪中..."
-                            else
-                                "所有玩家已就绪，准备就绪!"
-                        }"
-                        lore += ""
-                        lore += "左队玩家情况(${status.leftPlayerCount}/$playerCountPerGroup):"
-                        for (player in status.leftGroupPrepared)
-                            lore += "  &a$player 已就绪".colored()
-                        for (player in status.leftGroupUnprepared)
-                            lore += "  &c$player 未就绪".colored()
-                        lore += "右队玩家情况(${status.rightPlayerCount}/$playerCountPerGroup):"
-                        for (player in status.rightGroupPrepared)
-                            lore += "  &a$player 已就绪".colored()
-                        for (player in status.rightGroupUnprepared)
-                            lore += "  &c$player 未就绪".colored()
-                    })
-                }
-                GameStatus.IN_GAME   ->
-                {
-                    inventory.setItem(slot, buildItem(Material.RED_WOOL) { name = "立刻结束" })
-                }
-            }
-        }
+        name = "准备开始"
+        lore += "将创建新维度并在新纬度中进行比赛"
+    })
+    {
+        clicker.closeInventory()
+        val world = createGame(data)
+        clicker.teleport(LocationStatus.IN_FIELD.location(world))
     }
 }
 
@@ -373,51 +447,46 @@ fun HumanEntity.openReplaySettingsMenu()
                 onClick()
                 { event, element ->
                     event.clicker.closeInventory()
-                    if (gameStatus == GameStatus.NONE)
+                    if (element.third)
                     {
-                        if (element.third)
+                        event.clicker.closeInventory()
+                        submit(async = true)
                         {
-                            event.clicker.closeInventory()
-                            submit(async = true)
+                            val downloadBar = Bukkit.createBossBar(
+                                "&e正在下载回放...(${element.first})".colored(),
+                                BarColor.BLUE,
+                                BarStyle.SEGMENTED_20
+                            )
+
+                            try
                             {
-                                val downloadBar = Bukkit.createBossBar(
-                                    "&e正在下载回放...(${element.first})".colored(),
-                                    BarColor.BLUE,
-                                    BarStyle.SEGMENTED_20
-                                )
-
-                                try
-                                {
-                                    downloadBar.addPlayer(event.clicker)
-                                    downloadRecord(element.first)
-                                    { cur, tot ->
-                                        if (tot == 0L) return@downloadRecord
-                                        downloadBar.progress = (cur.toDouble() / tot.toDouble()).coerceIn(0.0, 1.0)
-                                    }
+                                downloadBar.addPlayer(event.clicker)
+                                downloadRecord(element.first)
+                                { cur, tot ->
+                                    if (tot == 0L) return@downloadRecord
+                                    downloadBar.progress = (cur.toDouble() / tot.toDouble()).coerceIn(0.0, 1.0)
                                 }
-                                finally
-                                {
-                                    downloadBar.removeAll()
-                                }
-
-                                val recordFile = recordsFolder.resolve(element.first + ".dat")
-                                if (recordFile.exists())
-                                    GameRecord.file(recordFile).replay()
-                                else
-                                    event.clicker.sendMessage("&c下载出现了问题，回放文件不存在!".colored())
                             }
-                        }
-                        else
-                        {
+                            finally
+                            {
+                                downloadBar.removeAll()
+                            }
+
                             val recordFile = recordsFolder.resolve(element.first + ".dat")
                             if (recordFile.exists())
-                                GameRecord.file(recordFile).replay()
+                                replayRecord(recordFile)
                             else
-                                event.clicker.sendMessage("&c回放文件不存在!".colored())
+                                event.clicker.sendMessage("&c下载出现了问题，回放文件不存在!".colored())
                         }
                     }
                     else
-                        event.clicker.sendMessage("&c当前场地有游戏正在进行，无法播放回放!".colored())
+                    {
+                        val recordFile = recordsFolder.resolve(element.first + ".dat")
+                        if (recordFile.exists())
+                            replayRecord(recordFile)
+                        else
+                            event.clicker.sendMessage("&c回放文件不存在!".colored())
+                    }
                 }
 
                 elements { allItems }

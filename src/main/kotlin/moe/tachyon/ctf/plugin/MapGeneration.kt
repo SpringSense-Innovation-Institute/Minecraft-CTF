@@ -1,30 +1,24 @@
 package moe.tachyon.ctf.plugin
 
-import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.gameStatus
-import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.playerCountPerGroup
-import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.randomMap
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.block.data.Bisected
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.MushroomCow
-import org.bukkit.entity.Player
 import org.bukkit.util.BoundingBox
 import org.bukkit.util.Vector
-import taboolib.common.platform.function.onlinePlayers
 import taboolib.common.util.randomDouble
 import taboolib.module.ai.*
 import taboolib.module.navigation.isWater
 import taboolib.platform.util.isNotAir
-import taboolib.platform.util.toProxyLocation
 
-fun clearMap()
+fun GameWorld.clearMap()
 {
     for (x in -24..24)
         for (z in -36..36)
         {
-            val location = Location(Bukkit.getWorld("world"), x.toDouble(), 0.0, z.toDouble())
+            val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
             if (location.block.type in listOf(Material.GOLD_BLOCK, Material.WAXED_COPPER_BLOCK, Material.OAK_SIGN, Material.RED_BANNER, Material.BLUE_BANNER))
             {
                 location.block.type = Material.GRASS_BLOCK
@@ -47,14 +41,14 @@ fun clearMap()
         }
 
     val box = BoundingBox(-24.0, -64.0, -36.0, 24.0, 20.0, 36.0)
-    Bukkit.getWorld("world")?.getNearbyEntities(box)?.forEach()
+    bukkitWorld().getNearbyEntities(box).forEach()
     {
         if (it.type != EntityType.PLAYER)
             it.remove()
     }
 }
 
-fun generateMap()
+fun GameWorld.generateMap()
 {
     var count = 0
 
@@ -81,7 +75,7 @@ fun generateMap()
             {
                 val x = xRange.random()
                 val z = zRange.random()
-                val location = Location(Bukkit.getWorld("world"), x.toDouble(), 0.0, z.toDouble())
+                val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
                 val location1 = location.clone().add(0.0, 1.0, 0.0)
                 if (location.block.type == Material.GRASS_BLOCK && location1.block.type.isAir &&
                     !listOf(list, leftFlags, rightFlags, leftTarget, rightTarget).any { it.contains(Pair(x, z)) })
@@ -96,19 +90,19 @@ fun generateMap()
     }
 
     for (target in leftTarget + rightTarget)
-        Location(Bukkit.getWorld("world"), target.first.toDouble(), 0.0, target.second.toDouble()).block.type = Material.GOLD_BLOCK
+        Location(bukkitWorld(), target.first.toDouble(), 0.0, target.second.toDouble()).block.type = Material.GOLD_BLOCK
 
     for (flag in leftFlags + rightFlags)
     {
-        Location(Bukkit.getWorld("world"), flag.first.toDouble(), 0.0, flag.second.toDouble()).block.type = Material.WAXED_COPPER_BLOCK
-        Location(Bukkit.getWorld("world"), flag.first.toDouble(), 1.0, flag.second.toDouble()).block.type = Material.OAK_FENCE
+        Location(bukkitWorld(), flag.first.toDouble(), 0.0, flag.second.toDouble()).block.type = Material.WAXED_COPPER_BLOCK
+        Location(bukkitWorld(), flag.first.toDouble(), 1.0, flag.second.toDouble()).block.type = Material.OAK_FENCE
     }
 
     for (flag in leftFlags)
-        Location(Bukkit.getWorld("world"), flag.first.toDouble(), 2.0, flag.second.toDouble()).block.type = Material.RED_BANNER
+        Location(bukkitWorld(), flag.first.toDouble(), 2.0, flag.second.toDouble()).block.type = Material.RED_BANNER
 
     for (flag in rightFlags)
-        Location(Bukkit.getWorld("world"), flag.first.toDouble(), 2.0, flag.second.toDouble()).block.type = Material.BLUE_BANNER
+        Location(bukkitWorld(), flag.first.toDouble(), 2.0, flag.second.toDouble()).block.type = Material.BLUE_BANNER
 
     // 生成树
     count = 0
@@ -117,7 +111,7 @@ fun generateMap()
         val x = (1..24).random() * if (count >= 5) -1 else 1
         val z = (-36..36).random()
         val high = (0..3).random()
-        val location = Location(Bukkit.getWorld("world"), x.toDouble(), 0.0, z.toDouble())
+        val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
 
         for (dx in -1..1)
             for (dz in -1..1)
@@ -142,7 +136,7 @@ fun generateMap()
     {
         val x = (1..24).random() * if (count >= 5) -1 else 1
         val z = (-36..36).random()
-        val location = Location(Bukkit.getWorld("world"), x.toDouble(), 0.0, z.toDouble())
+        val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
         if (location.block.type != Material.GRASS_BLOCK ||
             location.clone().add(0.0, 1.0, 0.0).block.type.isNotAir() ||
             location.clone().add(0.0, 2.0, 0.0).block.type.isNotAir())
@@ -163,7 +157,7 @@ fun generateMap()
     {
         val x = (1..24).random() * if (count >= playerCountPerGroup) -1 else 1
         val z = (-36..36).random()
-        val location = Location(Bukkit.getWorld("world"), x.toDouble(), 0.0, z.toDouble())
+        val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
         if (location.block.type != Material.GRASS_BLOCK ||
             location.clone().add(0.0, 1.0, 0.0).block.type.isNotAir() ||
             location.clone().add(0.0, 2.0, 0.0).block.type.isNotAir())
@@ -172,7 +166,7 @@ fun generateMap()
         e.variant = if (randomDouble() < 0.5) MushroomCow.Variant.BROWN else MushroomCow.Variant.RED
         e.clearGoalAi()
         e.clearTargetAi()
-        e.addTargetAi(CowAI(e), 1)
+        e.addTargetAi(CowAI(this, e), 1)
         count++
     }
 
@@ -181,7 +175,7 @@ fun generateMap()
     generateSquid@while (count < 5)
     {
         val z = (-36..36).random()
-        val location = Location(Bukkit.getWorld("world"), 0.5, -1.0, z.toDouble())
+        val location = Location(bukkitWorld(), 0.5, -1.0, z.toDouble())
         if (!location.block.type.isWater()) continue@generateSquid
         location.world!!.spawnEntity(location, EntityType.GLOW_SQUID)
         count++
@@ -189,15 +183,16 @@ fun generateMap()
 }
 
 private class CowAI(
+    private val world: GameWorld,
     val cow: MushroomCow,
 ): SimpleAi()
 {
     private var sprinting = false
     private var cooldown = false
 
-    override fun shouldExecute(): Boolean = gameStatus.inGame()
+    override fun shouldExecute(): Boolean = world.gameStatus.inGame()
 
-    override fun continueExecute(): Boolean = gameStatus.inGame()
+    override fun continueExecute(): Boolean = world.gameStatus.inGame()
 
     override fun resetTask() = Unit
 
@@ -205,24 +200,25 @@ private class CowAI(
 
     override fun updateTask()
     {
-        val target = onlinePlayers()
-            .filter { getPlayerTeam(it.name) != PlayerTeam.NONE }
-            .minBy { it.location.distanceSquared(cow.location.toProxyLocation()) }
+        val target = world.getPlayers()
+            .filter { world.getPlayerTeam(it) != PlayerTeam.NONE }
+            .mapNotNull { Bukkit.getPlayer(it) }
+            .minByOrNull { it.location.distanceSquared(cow.location) } ?: return
 
-        if (!sprinting && target.location.distanceSquared(cow.location.toProxyLocation()) < 16.0 && !cooldown)
+        if (!sprinting && target.location.distanceSquared(cow.location) < 16.0 && !cooldown)
         {
             sprinting = true
         }
-        else if (target.location.distanceSquared(cow.location.toProxyLocation()) >= 25.0)
+        else if (target.location.distanceSquared(cow.location) >= 25.0)
         {
             sprinting = false
             cooldown = false
         }
 
-        if (sprinting) cow.navigationMove(target.cast<Player>(), 3.0)
-        else cow.navigationMove(target.cast<Player>(), 1.0)
+        if (sprinting) cow.navigationMove(target, 3.0)
+        else cow.navigationMove(target, 1.0)
 
-        if (target.location.distanceSquared(cow.location.toProxyLocation()) < 1.0 && !cooldown)
+        if (target.location.distanceSquared(cow.location) < 1.0 && !cooldown)
         {
             val d = Vector(target.location.x - cow.location.x, 0.0, target.location.z - cow.location.z).normalize().multiply(0.8)
             cow.velocity = d

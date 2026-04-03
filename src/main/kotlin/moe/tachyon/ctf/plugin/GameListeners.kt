@@ -1,11 +1,10 @@
 package moe.tachyon.ctf.plugin
 
-import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.gameStatus
-import org.bukkit.Color
 import org.bukkit.Location
 import org.bukkit.Material
-import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Player
+import org.bukkit.event.entity.FoodLevelChangeEvent
+import org.bukkit.event.player.AsyncPlayerChatEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerRespawnEvent
 import taboolib.common.platform.event.SubscribeEvent
@@ -17,19 +16,35 @@ private fun Material?.isBanner(): Boolean =
 @SubscribeEvent
 private fun onPlayerPickupFlag(event: PlayerMoveEvent)
 {
-    if (!gameStatus.inGame()) return
+    val world = getGameWorld(event.player.world.name) ?: return
+    if (!world.gameStatus.inGame()) return
     val player = event.player
-    val team = getPlayerTeam(player.name)
+    val team = world.getPlayerTeam(player.name)
     if (team == PlayerTeam.NONE) return
-    val location = (event.to ?: return).clone().apply { y = 0.0 }
-    if (location.block.type != Material.WAXED_COPPER_BLOCK) return
-    if (location.clone().add(0.0, 1.0, 0.0).block.type != Material.OAK_FENCE) return
-    if (location.clone().add(0.0, 2.0, 0.0).block.type != if (team == PlayerTeam.LEFT) Material.BLUE_BANNER else Material.RED_BANNER) return
     if (player.inventory.helmet?.type.isBanner()) return
+    val location = (event.to ?: return).clone().apply { y = 0.0 }
 
-    location.block.type = Material.GRASS_BLOCK
-    location.clone().add(0.0, 2.0, 0.0).block.type = Material.AIR
-    location.clone().add(0.0, 1.0, 0.0).block.type = Material.AIR
+    val locations = listOf(
+        location.clone(),
+        location.clone().add(1.0, 0.0, 0.0),
+        location.clone().add(-1.0, 0.0, 0.0),
+        location.clone().add(0.0, 0.0, 1.0),
+        location.clone().add(0.0, 0.0, -1.0),
+    )
+
+    val rLocation = locations.firstOrNull()
+    {
+        if (it.block.type != Material.WAXED_COPPER_BLOCK) false
+        else if (it.clone().add(0.0, 1.0, 0.0).block.type != Material.OAK_FENCE) false
+        else if (it.clone().add(0.0, 2.0, 0.0).block.type != if (team == PlayerTeam.LEFT) Material.BLUE_BANNER else Material.RED_BANNER) false
+        else true
+    }
+
+    if (rLocation == null) return
+
+    rLocation.block.type = Material.GRASS_BLOCK
+    rLocation.clone().add(0.0, 2.0, 0.0).block.type = Material.AIR
+    rLocation.clone().add(0.0, 1.0, 0.0).block.type = Material.AIR
 
     player.inventory.helmet = if (team == PlayerTeam.LEFT) buildItem(Material.BLUE_BANNER) else buildItem(Material.RED_BANNER)
 }
@@ -37,9 +52,10 @@ private fun onPlayerPickupFlag(event: PlayerMoveEvent)
 @SubscribeEvent
 private fun onPlayerSetFlag(event: PlayerMoveEvent)
 {
-    if (!gameStatus.inGame()) return
+    val world = getGameWorld(event.player.world.name) ?: return
+    if (!world.gameStatus.inGame()) return
     val player = event.player
-    val team = getPlayerTeam(player.name)
+    val team = world.getPlayerTeam(player.name)
     if (team == PlayerTeam.NONE) return
     val location = (event.to ?: return).clone().apply { y = 0.0 }
     if (location.block.type != Material.GOLD_BLOCK) return
@@ -59,9 +75,10 @@ private fun onPlayerSetFlag(event: PlayerMoveEvent)
 @SubscribeEvent
 private fun onPlayerCaught(event: PlayerMoveEvent)
 {
-    if (!gameStatus.inGame()) return
+    val world = getGameWorld(event.player.world.name) ?: return
+    if (!world.gameStatus.inGame()) return
     val player = event.player
-    val team = getPlayerTeam(player.name)
+    val team = world.getPlayerTeam(player.name)
     if (team == PlayerTeam.NONE) return
 
     val selfLocationStatus = if (team == PlayerTeam.LEFT) LocationStatus.IN_LEFT_FIELD else LocationStatus.IN_RIGHT_FIELD
@@ -73,19 +90,19 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
         .getNearbyEntities(0.5, 1.0, 0.5)
         .filterIsInstance<Player>()
         .filter { player.boundingBox.overlaps(it.boundingBox) }
-        .filter { getPlayerTeam(it.name) != team }
+        .filter { world.getPlayerTeam(it.name) != team }
 
     for (entity in entities)
     {
         if (selfLocationStatus.contains(player.location) && selfLocationStatus.contains(entity.location))
         {
             onPlayerDropFlag(entity)
-            entity.teleport(enemyPrisonStatus.location)
+            entity.teleport(enemyPrisonStatus.location(world))
         }
         else if (enemyLocationStatus.contains(player.location) && enemyLocationStatus.contains(entity.location))
         {
             onPlayerDropFlag(player)
-            player.teleport(selfPrisonStatus.location)
+            player.teleport(selfPrisonStatus.location(world))
         }
     }
 }
@@ -93,25 +110,27 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
 @SubscribeEvent
 private fun onPlayerDeath(event: PlayerRespawnEvent)
 {
-    if (gameStatus != GameStatus.IN_GAME) return
+    val world = getGameWorld(event.player.world.name) ?: return
+    if (world.gameStatus != GameStatus.IN_GAME) return
     val player = event.player
-    val team = getPlayerTeam(player.name)
+    val team = world.getPlayerTeam(player.name)
     if (team == PlayerTeam.NONE) return
 
     onPlayerDropFlag(event.player)
 
     val prisonLocation = when (team)
     {
-        PlayerTeam.LEFT -> LocationStatus.IN_LEFT_PRISON.location
-        PlayerTeam.RIGHT -> LocationStatus.IN_RIGHT_PRISON.location
+        PlayerTeam.LEFT -> LocationStatus.IN_LEFT_PRISON.location(world)
+        PlayerTeam.RIGHT -> LocationStatus.IN_RIGHT_PRISON.location(world)
     }
     event.respawnLocation = prisonLocation
 }
 
 private fun onPlayerDropFlag(player: Player)
 {
+    val world = getGameWorld(player.world.name) ?: return
     if (!player.inventory.helmet?.type.isBanner()) return
-    val team = getPlayerTeam(player.name)
+    val team = world.getPlayerTeam(player.name)
     if (team == PlayerTeam.NONE) return
     for (range in 0..20)
     {
@@ -140,4 +159,21 @@ private fun canDropFlag(location: Location): Boolean
     if (location.clone().add(0.0, 1.0, 0.0).block.type != Material.AIR) return false
     if (location.clone().add(0.0, 2.0, 0.0).block.type != Material.AIR) return false
     return true
+}
+
+@SubscribeEvent
+fun onPlayerMessage(event: AsyncPlayerChatEvent)
+{
+    if (event.message == PLAYER_PREPARE_MESSAGE)
+    {
+        getGameWorlds().forEach { it.playerPrepared(event.player.name) }
+        event.isCancelled = true
+    }
+}
+
+@SubscribeEvent
+fun onFoodChange(event: FoodLevelChangeEvent)
+{
+    if (event.foodLevel < 7)
+        event.foodLevel = 7
 }
