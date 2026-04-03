@@ -150,6 +150,7 @@ private val matchMessageRegex = Regex("with (?<team>(\\d+)|none|random|default) 
 @SubscribeEvent
 private fun onPlayerMatch(event: AsyncPlayerChatEvent)
 {
+    if (event.player.world != Bukkit.getWorld("world")) return
     if (matchMessageRegex.matches(event.message))
     {
         val matchResult = matchMessageRegex.matchEntire(event.message) ?: return
