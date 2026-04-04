@@ -3,6 +3,7 @@ package moe.tachyon.ctf.plugin
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.entity.Player
+import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.FoodLevelChangeEvent
 import org.bukkit.event.player.AsyncPlayerChatEvent
 import org.bukkit.event.player.PlayerItemDamageEvent
@@ -198,7 +199,20 @@ private fun onFoodChange(event: FoodLevelChangeEvent)
 }
 
 @SubscribeEvent
-fun onItemDamage(event: PlayerItemDamageEvent)
+private fun onItemDamage(event: PlayerItemDamageEvent)
 {
     event.isCancelled = true
+}
+
+@SubscribeEvent
+private fun onEntityDamageEntity(event: EntityDamageByEntityEvent)
+{
+    if (event.damager is Player)
+    {
+        val world = getGameWorld(event.damager.world.name) ?: return
+        if (world.getPlayerTeam(event.damager.name) == PlayerTeam.NONE)
+        {
+            event.isCancelled = true
+        }
+    }
 }
