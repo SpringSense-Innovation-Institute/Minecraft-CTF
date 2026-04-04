@@ -66,6 +66,8 @@ class GameRecord(
 
                 task?.cancel()
 
+                checkGameWorldRecycle(world.name)
+
                 return@submit
             }
 
@@ -229,6 +231,7 @@ class GameRecord(
                     it.value.remove()
                 }
                 world.gameStatus = GameStatus.NONE
+                checkGameWorldRecycle(world.name)
                 return@submit
             }
 

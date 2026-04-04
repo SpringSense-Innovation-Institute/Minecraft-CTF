@@ -34,7 +34,6 @@ class GameWorld(
             else
             {
                 updateTeam()
-                checkGameWorldRecycle(name)
             }
         }
 
@@ -224,6 +223,21 @@ class GameWorld(
         if (gameStatus != GameStatus.PREPARING) return
         gameStatus = GameStatus.IN_GAME
 
+        updateStatisticData()
+        {
+            if (leftGroupNumber == 0 || rightGroupNumber == 0)
+            {
+                val group = if (leftGroupNumber == 0) rightGroupNumber else leftGroupNumber
+                val value = withNoneTimes[group] ?: 0
+                withNoneTimes[group] = value + 1
+            }
+            else
+            {
+                withOtherTimes[leftGroupNumber] = withOtherTimes[leftGroupNumber]?.plus(1) ?: 1
+                withOtherTimes[rightGroupNumber] = withOtherTimes[rightGroupNumber]?.plus(1) ?: 1
+            }
+        }
+
         var tick = 0L
 
         task = submit(period = 1)
@@ -285,6 +299,22 @@ class GameWorld(
             {
                 stopGame(winner!!)
                 task?.cancel()
+                updateStatisticData()
+                {
+                    if (leftGroupNumber != 0 && rightGroupNumber != 0)
+                    {
+                        totalTime[leftGroupNumber] = totalTime[leftGroupNumber]?.plus(tick) ?: tick
+                        totalTime[rightGroupNumber] = totalTime[rightGroupNumber]?.plus(tick) ?: tick
+                        if (winner == PlayerTeam.LEFT)
+                        {
+                            winTimes[leftGroupNumber] = winTimes[leftGroupNumber]?.plus(1) ?: 1
+                        }
+                        else
+                        {
+                            winTimes[rightGroupNumber] = winTimes[rightGroupNumber]?.plus(1) ?: 1
+                        }
+                    }
+                }
                 return@submit
             }
             tick++

@@ -71,9 +71,7 @@ private fun onPlayerMove(event: PlayerMoveEvent)
     }
     else if (!targetStatus.contains(from) && !targetStatus.contains(to))
     {
-        val location = targetStatus.location(world)
-        val targetLocation = Location(location.world, location.x, location.y, location.z, to.yaw, to.pitch)
-        event.player.teleport(targetLocation)
+        event.player.teleport(world, targetStatus)
     }
 }
 
@@ -194,7 +192,7 @@ private fun onPlayerMatch(event: AsyncPlayerChatEvent)
     }
 }
 
-@SubscribeEvent(priority = EventPriority.MONITOR)
+@SubscribeEvent(priority = EventPriority.MONITOR, ignoreCancelled = true)
 private fun onPlayerChat(event: AsyncPlayerChatEvent)
 {
     event.isCancelled = true

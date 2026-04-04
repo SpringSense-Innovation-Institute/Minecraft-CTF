@@ -58,9 +58,9 @@ fun generateGameWorld(
     return gameWorld
 }
 
-fun removeGameWorld(name: String) = submit(delay = 5)
+fun removeGameWorld(name: String)
 {
-    val world = Bukkit.getWorld(name) ?: return@submit
+    val world = Bukkit.getWorld(name) ?: return
 
     world.players.forEach()
     { player ->

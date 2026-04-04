@@ -85,7 +85,7 @@ fun processWaitList() = synchronized(waitList)
 
         if (world != null)
         {
-            player.teleport(LocationStatus.IN_FIELD.location(world))
+            player.teleport(world, LocationStatus.IN_FIELD)
             waitList -= playerName
             list[i] = list[i].copy(third = false)
             continue

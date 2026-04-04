@@ -71,6 +71,13 @@ private fun onPlayerSetFlag(event: PlayerMoveEvent)
     location.clone().add(0.0, 2.0, 0.0).block.type = if (team == PlayerTeam.LEFT) Material.BLUE_BANNER else Material.RED_BANNER
 
     player.inventory.helmet = null
+
+    updateStatisticData()
+    {
+        if (world.leftGroupNumber == 0 || world.rightGroupNumber == 0) return@updateStatisticData
+        val group = getPlayerGroup(player.name) ?: return@updateStatisticData
+        getFlagTimes[group] = getFlagTimes.getOrDefault(group, 0) + 1
+    }
 }
 
 @SubscribeEvent
@@ -90,7 +97,6 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
     val entities = player
         .getNearbyEntities(0.5, 1.0, 0.5)
         .filterIsInstance<Player>()
-        .filter { player.boundingBox.overlaps(it.boundingBox) }
         .filter { world.getPlayerTeam(it.name) != team }
 
     for (entity in entities)
@@ -98,12 +104,24 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
         if (selfLocationStatus.contains(player.location) && selfLocationStatus.contains(entity.location))
         {
             onPlayerDropFlag(entity)
-            entity.teleport(enemyPrisonStatus.location(world))
+            entity.teleport(world, enemyPrisonStatus)
+            updateStatisticData()
+            {
+                if (world.leftGroupNumber == 0 || world.rightGroupNumber == 0) return@updateStatisticData
+                val group = getPlayerGroup(player.name) ?: return@updateStatisticData
+                catchTimes[group] = catchTimes.getOrDefault(group, 0) + 1
+            }
         }
         else if (enemyLocationStatus.contains(player.location) && enemyLocationStatus.contains(entity.location))
         {
             onPlayerDropFlag(player)
-            player.teleport(selfPrisonStatus.location(world))
+            player.teleport(world, selfPrisonStatus)
+            updateStatisticData()
+            {
+                if (world.leftGroupNumber == 0 || world.rightGroupNumber == 0) return@updateStatisticData
+                val group = getPlayerGroup(entity.name) ?: return@updateStatisticData
+                catchTimes[group] = catchTimes.getOrDefault(group, 0) + 1
+            }
         }
     }
 }

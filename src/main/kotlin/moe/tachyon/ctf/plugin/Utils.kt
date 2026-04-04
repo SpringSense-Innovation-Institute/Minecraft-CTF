@@ -3,9 +3,16 @@ package moe.tachyon.ctf.plugin
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.World
+import org.bukkit.entity.Entity
 import org.bukkit.entity.HumanEntity
+import org.bukkit.entity.Player
 import taboolib.common.platform.function.submit
+import taboolib.common.util.random
+import taboolib.common.util.randomDouble
+import taboolib.platform.BukkitPlugin
 import taboolib.platform.util.title
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -31,7 +38,25 @@ enum class LocationStatus
         IN_RIGHT_PRISON -> Location(world.bukkitWorld(), 16.5, 1.0, 28.5)
         IN_CENTER -> Location(world.bukkitWorld(), 0.5, 1.0, 0.5)
         IN_FIELD -> Location(world.bukkitWorld(), 0.5, 1.0, 0.5)
-        OUT_OF_FIELD -> Location(world.bukkitWorld(), -35.5, 1.0, 0.5)
+        OUT_OF_FIELD ->
+        {
+            val atX = randomDouble() < 0.5
+            val tmp = randomDouble() < 0.5
+            val x = if (atX) random(-24.0, 24.0) else random(-36.0, 36.0)
+
+            val location = Location(
+                world.bukkitWorld(),
+                if (atX) x else if (tmp) -24.0 else 24.0,
+                30.0,
+                if (atX) if (tmp) -36.0 else 36.0 else x,
+            )
+
+            val vec = Location(world.bukkitWorld(), 0.5, 1.0, 0.5).toVector().subtract(location.toVector())
+
+            location.direction = vec
+
+            location
+        }
     }
 
     fun contains(location: Location): Boolean
@@ -52,6 +77,13 @@ enum class LocationStatus
             IN_FIELD -> x in -24..24 && z in -36..36 && y in -64..20
         }
     }
+}
+
+fun Entity.teleport(world: GameWorld, locationStatus: LocationStatus)
+{
+    if (locationStatus == LocationStatus.OUT_OF_FIELD && this is Player)
+        isFlying = true
+    teleport(locationStatus.location(world))
 }
 
 enum class PlayerTeam
@@ -138,4 +170,84 @@ fun createGame(data: GameSettingData): GameWorld
 fun HumanEntity.teleportToWorld(world: World = Bukkit.getWorld("world")!!)
 {
     teleport(Location(world, 0.5, 1.0, 0.5))
+}
+
+fun getPlayerGroup(player: String): Int? =
+    player.split("-").getOrNull(1)?.toIntOrNull()
+
+data class StatisticData(
+    var withNoneTimes: MutableMap<Int, Long> = mutableMapOf(),
+    var withOtherTimes: MutableMap<Int, Long> = mutableMapOf(),
+    var catchTimes: MutableMap<Int, Long> = mutableMapOf(),
+    var getFlagTimes: MutableMap<Int, Long> = mutableMapOf(),
+    var totalTime: MutableMap<Int, Long> = mutableMapOf(),
+    var winTimes: MutableMap<Int, Long> = mutableMapOf(),
+)
+
+private val statisticFileLock = Any()
+private fun getStatisticData(): StatisticData = synchronized(statisticFileLock)
+{
+    val file = BukkitPlugin.getInstance().dataFolder.resolve("statistics.dat")
+    if (!file.exists()) return StatisticData()
+    val input = DataInputStream(file.inputStream())
+    val withNoneTimes = mutableMapOf<Int, Long>()
+    val withOtherTimes = mutableMapOf<Int, Long>()
+    val catchTimes = mutableMapOf<Int, Long>()
+    val getFlagTimes = mutableMapOf<Int, Long>()
+    val totalTime = mutableMapOf<Int, Long>()
+    val winTimes = mutableMapOf<Int, Long>()
+    while (input.available() > 0)
+    {
+        val field = input.readUTF()
+        val size = input.readInt()
+        repeat(size)
+        {
+            val group = input.readInt()
+            val time = input.readLong()
+            when (field)
+            {
+                "withNoneTimes" -> withNoneTimes[group] = time
+                "withOtherTimes" -> withOtherTimes[group] = time
+                "catchTimes" -> catchTimes[group] = time
+                "getFlagTimes" -> getFlagTimes[group] = time
+                "totalTime" -> totalTime[group] = time
+                "winTimes" -> winTimes[group] = time
+            }
+        }
+    }
+    return StatisticData(withNoneTimes, withOtherTimes, catchTimes, getFlagTimes, totalTime, winTimes)
+}
+
+private fun saveStatisticData(data: StatisticData) = synchronized(statisticFileLock)
+{
+    val file = BukkitPlugin.getInstance().dataFolder.resolve("statistics.dat")
+    DataOutputStream(file.outputStream()).use()
+    { output ->
+        listOf(
+            "withNoneTimes" to data.withNoneTimes,
+            "withOtherTimes" to data.withOtherTimes,
+            "catchTimes" to data.catchTimes,
+            "getFlagTimes" to data.getFlagTimes,
+            "totalTime" to data.totalTime,
+            "winTimes" to data.winTimes,
+        ).forEach()
+        { (field, map) ->
+            output.writeUTF(field)
+            output.writeInt(map.size)
+            map.forEach()
+            { (group, time) ->
+                output.writeInt(group)
+                output.writeLong(time)
+            }
+        }
+    }
+}
+
+fun updateStatisticData(
+    block: StatisticData.() -> Unit
+) = synchronized(statisticFileLock)
+{
+    val data = getStatisticData()
+    data.block()
+    saveStatisticData(data)
 }
