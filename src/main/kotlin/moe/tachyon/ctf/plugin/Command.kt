@@ -7,6 +7,7 @@ import taboolib.common.platform.Awake
 import taboolib.common.platform.ProxyPlayer
 import taboolib.common.platform.command.CommandBody
 import taboolib.common.platform.command.CommandHeader
+import taboolib.common.platform.command.PermissionDefault
 import taboolib.common.platform.command.simpleCommand
 import taboolib.common.platform.command.subCommand
 
@@ -70,7 +71,7 @@ object Commands
 @Awake(LifeCycle.ENABLE)
 fun registerMenuCommand()
 {
-    simpleCommand("ctfmenu")
+    simpleCommand("ctfmenu", permissionDefault = PermissionDefault.TRUE)
     { sender, _ ->
         if (sender !is ProxyPlayer) return@simpleCommand
         val player = sender.cast<Player>()
