@@ -193,3 +193,13 @@ private fun onPlayerMatch(event: AsyncPlayerChatEvent)
         event.isCancelled = true
     }
 }
+
+@SubscribeEvent(priority = EventPriority.MONITOR)
+private fun onPlayerChat(event: AsyncPlayerChatEvent)
+{
+    event.isCancelled = true
+    event.player.world.players.forEach()
+    {
+        it.sendMessage("<${event.player.name}> ${event.message}")
+    }
+}
