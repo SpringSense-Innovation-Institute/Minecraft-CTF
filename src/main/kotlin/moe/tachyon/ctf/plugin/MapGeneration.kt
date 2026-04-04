@@ -153,7 +153,7 @@ fun GameWorld.generateMap()
 
     // 生成哞菇
     count = 0
-    generateMushroom@while (count < playerCountPerGroup * 2)
+    generateMushroom@while (count < playerCountPerGroup * 3)
     {
         val x = (1..24).random() * if (count >= playerCountPerGroup) -1 else 1
         val z = (-36..36).random()
