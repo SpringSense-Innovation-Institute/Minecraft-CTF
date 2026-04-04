@@ -196,8 +196,27 @@ private fun onPlayerMatch(event: AsyncPlayerChatEvent)
 private fun onPlayerChat(event: AsyncPlayerChatEvent)
 {
     event.isCancelled = true
+    val msg = "<${event.player.name}> ${event.message}"
+
+    val sensitiveMessages = listOf(GAME_PREPARED_MESSAGE, GAME_START_MESSAGE, GAME_END_MESSAGE).map { it.trim().lowercase() }
+
+    if (sensitiveMessages.any { msg.lowercase().contains(it) })
+        return
+
     event.player.world.players.forEach()
     {
-        it.sendMessage("<${event.player.name}> ${event.message}")
+        it.sendMessage(msg)
     }
+}
+
+@SubscribeEvent
+private fun onPlayerBreakBlock(event: BlockBreakEvent)
+{
+    event.isCancelled = true
+}
+
+@SubscribeEvent
+private fun onPlayerPlaceBlock(event: BlockPlaceEvent)
+{
+    event.isCancelled = true
 }
