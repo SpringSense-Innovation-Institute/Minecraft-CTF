@@ -143,6 +143,7 @@ private fun tryGetGameWorld(group: Int, setting: MatchSetting): GameWorld?
 private fun isGameSettingMatched(g1: Int, setting1: MatchSetting, g2: Int, setting2: MatchSetting): Boolean
 {
     warning("Matching $g1 with $setting1 and $g2 with $setting2")
+    if (g1 == g2) return false
     if (setting1.playersPerGroup != setting2.playersPerGroup) return false
     if (setting1.mapType != MapType.UNSPECIFIED && setting2.mapType != MapType.UNSPECIFIED && setting1.mapType != setting2.mapType) return false
     val enemyMatched1 = when (setting1.enemy)
