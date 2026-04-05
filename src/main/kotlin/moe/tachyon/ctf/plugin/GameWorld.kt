@@ -294,10 +294,9 @@ class GameWorld(
                 bukkitWorld().setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true)
             }
             val end = tick == 3L * 60 * 20
-            val winner = getWinner(end = end)
-            if (winner in listOf(PlayerTeam.LEFT, PlayerTeam.RIGHT) || end)
-            {
-                stopGame(winner!!)
+            getWinner(end = end)?.let()
+            { winner ->
+                stopGame(winner)
                 task?.cancel()
                 updateStatisticData()
                 {
@@ -306,13 +305,9 @@ class GameWorld(
                         totalTime[leftGroupNumber] = totalTime[leftGroupNumber]?.plus(tick) ?: tick
                         totalTime[rightGroupNumber] = totalTime[rightGroupNumber]?.plus(tick) ?: tick
                         if (winner == PlayerTeam.LEFT)
-                        {
                             winTimes[leftGroupNumber] = winTimes[leftGroupNumber]?.plus(1) ?: 1
-                        }
                         else
-                        {
                             winTimes[rightGroupNumber] = winTimes[rightGroupNumber]?.plus(1) ?: 1
-                        }
                     }
                 }
                 return@submit
@@ -374,9 +369,12 @@ class GameWorld(
         val leftTeamPlayer = getPlayers().count { it in leftGroupPlayers }
         val rightTeamPlayer = getPlayers().count { it in rightGroupPlayers }
 
-        if (leftTeamPlayer == 0 && rightTeamPlayer == 0) return PlayerTeam.NONE
-        if (leftTeamPlayer == 0 && leftGroupNumber != 0) return PlayerTeam.RIGHT
-        if (rightTeamPlayer == 0 && rightGroupNumber != 0) return PlayerTeam.LEFT
+        val leftTeamEmpty = leftTeamPlayer == 0 && leftGroupNumber != 0
+        val rightTeamEmpty = rightTeamPlayer == 0 && rightGroupNumber != 0
+
+        if (leftTeamEmpty && rightTeamEmpty) return PlayerTeam.NONE
+        if (leftTeamEmpty) return PlayerTeam.RIGHT
+        if (rightTeamEmpty) return PlayerTeam.LEFT
 
         var leftCount = 0
         var rightCount = 0

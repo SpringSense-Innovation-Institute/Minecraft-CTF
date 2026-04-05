@@ -3,7 +3,6 @@ package moe.tachyon.ctf.plugin
 import org.bukkit.Bukkit
 import org.bukkit.WorldCreator
 import org.bukkit.generator.ChunkGenerator
-import taboolib.common.platform.function.submit
 import taboolib.common.platform.function.warning
 import java.io.File
 
