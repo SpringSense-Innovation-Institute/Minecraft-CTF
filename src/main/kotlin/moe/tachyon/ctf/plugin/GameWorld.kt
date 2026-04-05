@@ -18,6 +18,7 @@ class GameWorld(
     val record: GameRecord,
     val randomMap: Boolean,
     val playerCountPerGroup: Int,
+    val practice: String?,
 )
 {
     private val leftGroupPlayers = mutableSetOf<String>()
@@ -117,13 +118,17 @@ class GameWorld(
         broadcastMessage("&6$leftGroupNumber VS $rightGroupNumber 的对决即将开始，请做好准备!".colored())
 
         preparedPlayers.clear()
-        submit()
+        submit(delay = 600)
         {
-            getPlayers().forEach()
+            if (gameStatus == GameStatus.PREPARING)
             {
-                val player = Bukkit.getPlayer(it) ?: return@forEach
-                player.gameMode = GameMode.CREATIVE
-                player.inventory.clear()
+                if (leftGroupNumber == 0 && rightGroupNumber == 0) return@submit
+
+                val leftGroupIsReady = leftGroupPlayers.size == playerCountPerGroup && leftGroupPlayers.all { it in preparedPlayers } || leftGroupNumber == 0
+                val rightGroupIsReady = rightGroupPlayers.size == playerCountPerGroup && rightGroupPlayers.all { it in preparedPlayers } || rightGroupNumber == 0
+
+                if (!leftGroupIsReady || !rightGroupIsReady)
+                    stopGame(PlayerTeam.NONE)
             }
         }
     }
@@ -223,21 +228,6 @@ class GameWorld(
         if (gameStatus != GameStatus.PREPARING) return
         gameStatus = GameStatus.IN_GAME
 
-        updateStatisticData()
-        {
-            if (leftGroupNumber == 0 || rightGroupNumber == 0)
-            {
-                val group = if (leftGroupNumber == 0) rightGroupNumber else leftGroupNumber
-                val value = withNoneTimes[group] ?: 0
-                withNoneTimes[group] = value + 1
-            }
-            else
-            {
-                withOtherTimes[leftGroupNumber] = withOtherTimes[leftGroupNumber]?.plus(1) ?: 1
-                withOtherTimes[rightGroupNumber] = withOtherTimes[rightGroupNumber]?.plus(1) ?: 1
-            }
-        }
-
         var tick = 0L
 
         task = submit(period = 1)
@@ -292,13 +282,28 @@ class GameWorld(
                     player.sendTitle("&6$leftGroupNumber VS $rightGroupNumber 开始了!".colored(), "", 10, 70, 20)
                 }
                 bukkitWorld().setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true)
+
+                updateStatisticData(practice)
+                {
+                    if (leftGroupNumber == 0 || rightGroupNumber == 0)
+                    {
+                        val group = if (leftGroupNumber == 0) rightGroupNumber else leftGroupNumber
+                        val value = withNoneTimes[group] ?: 0
+                        withNoneTimes[group] = value + 1
+                    }
+                    else
+                    {
+                        withOtherTimes[leftGroupNumber] = withOtherTimes[leftGroupNumber]?.plus(1) ?: 1
+                        withOtherTimes[rightGroupNumber] = withOtherTimes[rightGroupNumber]?.plus(1) ?: 1
+                    }
+                }
             }
             val end = tick == 3L * 60 * 20
             getWinner(end = end)?.let()
             { winner ->
                 stopGame(winner)
                 task?.cancel()
-                updateStatisticData()
+                updateStatisticData(practice)
                 {
                     if (leftGroupNumber != 0 && rightGroupNumber != 0)
                     {
@@ -324,6 +329,11 @@ class GameWorld(
         if (gameStatus == GameStatus.PREPARING)
         {
             broadcastMessage("&c游戏已取消".colored())
+            getPlayers().forEach()
+            {
+                val p = Bukkit.getPlayer(it) ?: return@forEach
+                if (p.world.name == name) p.teleportToWorld()
+            }
             return
         }
 

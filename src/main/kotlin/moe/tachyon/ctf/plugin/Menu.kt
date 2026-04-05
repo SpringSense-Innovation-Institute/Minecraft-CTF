@@ -183,7 +183,7 @@ private fun HumanEntity.openGameSettingsMenu(): Unit = openMenu<Chest>()
     map(
         "<#######X",
         "#       #",
-        "# A B C #",
+        "#A B C D#",
         "#       #",
         "#########"
     )
@@ -200,6 +200,13 @@ private fun HumanEntity.openGameSettingsMenu(): Unit = openMenu<Chest>()
     }) { clicker.openPlayerGroupingMenu() }
     set('B', buildItem(Material.MAP) { name = "地图设置" }) { clicker.openMapSettingsMenu() }
     set('C', buildItem(Material.COMPASS) { name = "游戏控制" }) { clicker.openGameControlMenu() }
+    set('D', buildItem(Material.OAK_SIGN) { name = "练习赛设置" })
+    {
+        context(practiceMode ?: PracticeMode())
+        {
+            clicker.openPracticeSettingMenu()
+        }
+    }
 }
 
 context(data: GameSettingData)
@@ -400,6 +407,8 @@ private fun HumanEntity.openReplaySettingsMenu()
         {
             openMenu<PageableChest<Triple<String, Long, Boolean>>>()
             {
+                title = "回放管理"
+
                 rows(6)
 
                 map(
@@ -498,6 +507,278 @@ private fun HumanEntity.openReplaySettingsMenu()
 
                 elements { allItems }
             }
+        }
+    }
+}
+
+context(data: PracticeMode)
+private fun HumanEntity.openPracticeSettingMenu(): Unit = openMenu<Chest>()
+{
+    title = "练习赛设置"
+    rows(6)
+    map(
+        "<#######X",
+        "#       #",
+        "#A B C D#",
+        "#       #",
+        "#   E   #",
+        "#########"
+    )
+
+    set('#', buildItem(Material.GRAY_STAINED_GLASS_PANE) { name = " " }) { }
+    set('X', buildItem(Material.BARRIER) { name = "关闭" }) { clicker.closeInventory() }
+    set('<', buildItem(Material.ARROW) { name = "返回" }) { clicker.openMainMenu() }
+
+    set('A', buildItem(Material.OAK_SIGN)
+    {
+        name = "名字设置"
+        lore += "当前设置: ${data.name}"
+    }) { clicker.openPracticeNameInputMenu() }
+
+    set('B', buildItem(Material.PLAYER_HEAD)
+    {
+        name = "匹配设置"
+        lore += "当前设置: " + when (data.enemy)
+        {
+            Enemy.Default  -> "默认敌人"
+            Enemy.None     -> "无敌人"
+            Enemy.Random   -> "随机敌人"
+            else           -> "未指定"
+        }
+    }) { clicker.openPracticeEnemySettingMenu() }
+
+    set('C', buildItem(Material.MAP)
+    {
+        name = "地图设置"
+        lore += "当前设置: " + when (data.mapType)
+        {
+            MapType.FIXED -> "固定地图"
+            MapType.RANDOM -> "随机地图"
+            MapType.UNSPECIFIED -> "任意地图"
+            null -> "未指定"
+        }
+    }) { clicker.openPracticeMapSettingMenu() }
+
+    set('D', buildItem(Material.COMPASS)
+    {
+        name = "人数设置"
+        lore += "当前设置: 每队玩家人数 ${data.playersPerGroup ?: "未指定"}"
+    }) { clicker.openPracticePlayerCountMenu() }
+
+    set('E', buildItem(Material.OAK_SIGN)
+    {
+        val p = practiceMode
+        name = if (p == null) "启用练习赛模式" else "禁用练习赛模式"
+        if (p != null)
+        {
+            lore += "当前设置: "
+            lore += "名字：${p.name}"
+            lore += "匹配模式：" + when (p.enemy)
+            {
+                Enemy.Default  -> "默认敌人"
+                Enemy.None     -> "无敌人"
+                Enemy.Random   -> "随机敌人"
+                else           -> "未指定"
+            }
+            lore += "地图类型：" + when (p.mapType)
+            {
+                MapType.FIXED -> "固定地图"
+                MapType.RANDOM -> "随机地图"
+                MapType.UNSPECIFIED -> "任意地图"
+                null -> "未指定"
+            }
+            lore += "每队玩家人数：${p.playersPerGroup ?: "未指定"}"
+        }
+    })
+    {
+        practiceMode = if (practiceMode == null) data else null
+        clicker.openPracticeSettingMenu()
+    }
+}
+
+context(data: PracticeMode)
+private fun HumanEntity.openPracticeNameInputMenu(): Unit = openMenu<Anvil>()
+{
+    title = "输入练习赛名字"
+    set(0, buildItem(Material.PAPER) { name = data.name })
+
+    onRename()
+    { _, text, inventory ->
+        if (text.isBlank())
+        {
+            inventory.setItem(2, buildItem(Material.RED_STAINED_GLASS_PANE)
+            {
+                name = "名字不能为空!"
+            })
+        }
+        else
+        {
+            inventory.setItem(2, buildItem(Material.GREEN_STAINED_GLASS_PANE)
+            {
+                name = text
+            })
+        }
+    }
+
+    onClick(2)
+    {
+        val text = it.inventory.getItem(2)?.itemMeta?.displayName
+        if (text.isNullOrBlank())
+            return@onClick it.inventory.setItem(2, buildItem(Material.RED_STAINED_GLASS_PANE) { name = "名字不能为空!" })
+
+        context(data.copy(name = text))
+        {
+            it.clicker.openPracticeSettingMenu()
+        }
+    }
+}
+
+context(data: PracticeMode)
+private fun HumanEntity.openPracticeEnemySettingMenu(): Unit = openMenu<Chest>()
+{
+    title = "练习赛匹配设置"
+    rows(1)
+    map(" A B C D ")
+
+    set('A', buildItem(Material.BARRIER)
+    {
+        name = "none"
+        if (data.enemy is Enemy.None) enchants[Enchantment.MENDING] = 1
+    })
+    {
+        context(data.copy(enemy = Enemy.None))
+        {
+            clicker.openPracticeSettingMenu()
+        }
+    }
+
+    set('B', buildItem(Material.ZOMBIE_HEAD)
+    {
+        name = "default"
+        if (data.enemy is Enemy.Default) enchants[Enchantment.MENDING] = 1
+    })
+    {
+        context(data.copy(enemy = Enemy.Default))
+        {
+            clicker.openPracticeSettingMenu()
+        }
+    }
+
+    set('C', buildItem(Material.ENDER_PEARL)
+    {
+        name = "random"
+        if (data.enemy is Enemy.Random) enchants[Enchantment.MENDING] = 1
+    })
+    {
+        context(data.copy(enemy = Enemy.Random))
+        {
+            clicker.openPracticeSettingMenu()
+        }
+    }
+
+    set('D', buildItem(Material.PLAYER_HEAD)
+    {
+        name = "不指定"
+        if (data.enemy == null) enchants[Enchantment.MENDING] = 1
+    })
+    {
+        context(data.copy(enemy = null))
+        {
+            clicker.openPracticeSettingMenu()
+        }
+    }
+}
+
+context(data: PracticeMode)
+private fun HumanEntity.openPracticeMapSettingMenu(): Unit = openMenu<Chest>()
+{
+    title = "练习赛地图设置"
+    rows(1)
+    map(" A B C D ")
+
+    set('A', buildItem(Material.GRASS_BLOCK)
+    {
+        name = "fixed"
+        if (data.mapType == MapType.FIXED) enchants[Enchantment.MENDING] = 1
+    })
+    {
+        context(data.copy(mapType = MapType.FIXED))
+        {
+            clicker.openPracticeSettingMenu()
+        }
+    }
+
+    set('B', buildItem(Material.MAP)
+    {
+        name = "random"
+        if (data.mapType == MapType.RANDOM) enchants[Enchantment.MENDING] = 1
+    })
+    {
+        context(data.copy(mapType = MapType.RANDOM))
+        {
+            clicker.openPracticeSettingMenu()
+        }
+    }
+
+    set('C', buildItem(Material.ENDER_PEARL)
+    {
+        name = "unspecified"
+        if (data.mapType == MapType.UNSPECIFIED) enchants[Enchantment.MENDING] = 1
+    })
+    {
+        context(data.copy(mapType = MapType.UNSPECIFIED))
+        {
+            clicker.openPracticeSettingMenu()
+        }
+    }
+
+    set('D', buildItem(Material.PLAYER_HEAD)
+    {
+        name = "不指定"
+        if (data.mapType == null) enchants[Enchantment.MENDING] = 1
+    })
+    {
+        context(data.copy(mapType = null))
+        {
+            clicker.openPracticeSettingMenu()
+        }
+    }
+}
+
+context(data: PracticeMode)
+private fun HumanEntity.openPracticePlayerCountMenu(): Unit = openMenu<Chest>()
+{
+    title = "练习赛人数设置"
+    rows(1)
+    map("1234567 N")
+
+    val counts = listOf(1, 2, 3, 4, 5, 6, 7)
+
+    for (i in counts.indices)
+    {
+        val count = counts[i]
+        set("$count"[0], buildItem(Material.OAK_SIGN)
+        {
+            name = "$count"
+            if (data.playersPerGroup == count) enchants[Enchantment.MENDING] = 1
+        })
+        {
+            context(data.copy(playersPerGroup = count))
+            {
+                clicker.openPracticeSettingMenu()
+            }
+        }
+    }
+
+    set('N', buildItem(Material.PLAYER_HEAD)
+    {
+        name = "不指定"
+        if (data.playersPerGroup == null) enchants[Enchantment.MENDING] = 1
+    })
+    {
+        context(data.copy(playersPerGroup = null))
+        {
+            clicker.openPracticeSettingMenu()
         }
     }
 }

@@ -179,6 +179,14 @@ private fun onPlayerMatch(event: AsyncPlayerChatEvent)
         if (enemyMode is Enemy.Group && enemyMode.groupId == group) return
         if (enemyMode is Enemy.Group && enemyMode.groupId < 0) return
 
+        val p = practiceMode
+        if (p != null)
+        {
+            if (p.enemy != null && p.enemy != enemyMode) return
+            if (p.playersPerGroup != null && p.playersPerGroup != count) return
+            if (p.mapType != null && p.mapType != mapType) return
+        }
+
         addToWaitList(
             playerName = event.player.name,
             setting = MatchSetting(

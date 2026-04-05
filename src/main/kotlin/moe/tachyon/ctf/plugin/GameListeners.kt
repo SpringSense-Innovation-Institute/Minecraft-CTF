@@ -73,7 +73,7 @@ private fun onPlayerSetFlag(event: PlayerMoveEvent)
 
     player.inventory.helmet = null
 
-    updateStatisticData()
+    updateStatisticData(world.practice)
     {
         if (world.leftGroupNumber == 0 || world.rightGroupNumber == 0) return@updateStatisticData
         val group = getPlayerGroup(player.name) ?: return@updateStatisticData
@@ -106,7 +106,7 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
         {
             onPlayerDropFlag(entity)
             entity.teleport(world, enemyPrisonStatus)
-            updateStatisticData()
+            updateStatisticData(world.practice)
             {
                 if (world.leftGroupNumber == 0 || world.rightGroupNumber == 0) return@updateStatisticData
                 val group = getPlayerGroup(player.name) ?: return@updateStatisticData
@@ -117,7 +117,7 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
         {
             onPlayerDropFlag(player)
             player.teleport(world, selfPrisonStatus)
-            updateStatisticData()
+            updateStatisticData(world.practice)
             {
                 if (world.leftGroupNumber == 0 || world.rightGroupNumber == 0) return@updateStatisticData
                 val group = getPlayerGroup(entity.name) ?: return@updateStatisticData

@@ -52,6 +52,7 @@ fun generateGameWorld(
         record = record,
         randomMap = setting.randomMap,
         playerCountPerGroup = setting.playerCountPerGroup,
+        practice = practiceMode?.name,
     )
     worlds[name] = gameWorld
     return gameWorld

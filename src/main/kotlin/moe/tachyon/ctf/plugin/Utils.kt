@@ -1,5 +1,6 @@
 package moe.tachyon.ctf.plugin
 
+import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.server
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.World
@@ -156,8 +157,9 @@ fun createGame(data: GameSettingData): GameWorld
 {
     var world: GameWorld? = null
     val date = Date()
-    val format = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss")
-    val record = GameRecord.file({ world!! }, "${format.format(date)}_${data.leftGroupNumber}vs${data.rightGroupNumber}_${randomId()}")
+    val format = SimpleDateFormat("yy-MM-dd_HH-mm-ss")
+    val prefix = practiceMode?.name?.plus("_") ?: ""
+    val record = GameRecord.file({ world!! }, "${prefix}${format.format(date)}_${data.leftGroupNumber}vs${data.rightGroupNumber}_${randomId()}")
     world = generateGameWorld(
         "game-${data.leftGroupNumber}vs${data.rightGroupNumber}-${randomId()}",
         data,
@@ -185,9 +187,9 @@ data class StatisticData(
 )
 
 private val statisticFileLock = Any()
-private fun getStatisticData(): StatisticData = synchronized(statisticFileLock)
+private fun getStatisticData(filename: String): StatisticData = synchronized(statisticFileLock)
 {
-    val file = BukkitPlugin.getInstance().dataFolder.resolve("statistics.dat")
+    val file = BukkitPlugin.getInstance().dataFolder.resolve("$filename.dat")
     if (!file.exists()) return StatisticData()
     val input = DataInputStream(file.inputStream())
     val withNoneTimes = mutableMapOf<Int, Long>()
@@ -218,9 +220,9 @@ private fun getStatisticData(): StatisticData = synchronized(statisticFileLock)
     return StatisticData(withNoneTimes, withOtherTimes, catchTimes, getFlagTimes, totalTime, winTimes)
 }
 
-private fun saveStatisticData(data: StatisticData) = synchronized(statisticFileLock)
+private fun saveStatisticData(filename: String, data: StatisticData) = synchronized(statisticFileLock)
 {
-    val file = BukkitPlugin.getInstance().dataFolder.resolve("statistics.dat")
+    val file = BukkitPlugin.getInstance().dataFolder.resolve("$filename.dat")
     DataOutputStream(file.outputStream()).use()
     { output ->
         listOf(
@@ -244,10 +246,53 @@ private fun saveStatisticData(data: StatisticData) = synchronized(statisticFileL
 }
 
 fun updateStatisticData(
+    name: String? = null,
     block: StatisticData.() -> Unit
 ) = synchronized(statisticFileLock)
 {
-    val data = getStatisticData()
+    val data = getStatisticData(name ?: "statistics")
     data.block()
-    saveStatisticData(data)
+    saveStatisticData(name ?: "statistics", data)
+}
+
+fun setupServer()
+{
+    server.createContext("/statistics")
+    { exchange ->
+        val statistic = getStatisticData(practiceMode?.name ?: "statistics")
+
+        val sb = StringBuilder()
+
+        sb.append("{")
+        sb.append("\"withNoneTimes\": {")
+        sb.append(statistic.withNoneTimes.entries.joinToString(",") { "\"${it.key}\": ${it.value}" })
+        sb.append("},")
+        sb.append("\"withOtherTimes\": {")
+        sb.append(statistic.withOtherTimes.entries.joinToString(",") { "\"${it.key}\": ${it.value}" })
+        sb.append("},")
+        sb.append("\"catchTimes\": {")
+        sb.append(statistic.catchTimes.entries.joinToString(",") { "\"${it.key}\": ${it.value}" })
+        sb.append("},")
+        sb.append("\"getFlagTimes\": {")
+        sb.append(statistic.getFlagTimes.entries.joinToString(",") { "\"${it.key}\": ${it.value}" })
+        sb.append("},")
+        sb.append("\"totalTime\": {")
+        sb.append(statistic.totalTime.entries.joinToString(",") { "\"${it.key}\": ${it.value}" })
+        sb.append("},")
+        sb.append("\"winTimes\": {")
+        sb.append(statistic.winTimes.entries.joinToString(",") { "\"${it.key}\": ${it.value}" })
+        sb.append("}")
+        sb.append("}")
+
+        val r = sb.toString()
+
+        exchange.sendResponseHeaders(200, r.toByteArray().size.toLong())
+        exchange.responseHeaders.add("Content-Type", "application/json")
+
+        val os = exchange.responseBody
+        os.write(r.toByteArray())
+        os.close()
+    }
+    server.executor = null
+    server.start()
 }
