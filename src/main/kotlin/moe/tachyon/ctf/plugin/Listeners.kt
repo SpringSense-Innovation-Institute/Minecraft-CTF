@@ -228,3 +228,10 @@ private fun onPlayerPlaceBlock(event: BlockPlaceEvent)
 {
     event.isCancelled = true
 }
+
+@SubscribeEvent
+fun onKickSpam(event: PlayerKickEvent)
+{
+    if ("spam" in event.reason || "spam" in event.leaveMessage)
+        event.isCancelled = true
+}
