@@ -112,13 +112,13 @@ class GameWorld(
     private var task: PlatformExecutor.PlatformTask? = null
     private val preparedPlayers = mutableSetOf<String>()
 
-    fun prepareGame()
+    fun prepareGame(timeout: Boolean = true)
     {
         gameStatus = GameStatus.PREPARING
         broadcastMessage("&6$leftGroupNumber VS $rightGroupNumber 的对决即将开始，请做好准备!".colored())
 
         preparedPlayers.clear()
-        submit(delay = 600)
+        if (timeout) submit(delay = 600)
         {
             if (gameStatus == GameStatus.PREPARING)
             {

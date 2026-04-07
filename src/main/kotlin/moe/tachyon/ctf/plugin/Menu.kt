@@ -387,7 +387,7 @@ private fun HumanEntity.openGameControlMenu(): Unit = openMenu<Chest>()
     })
     {
         clicker.closeInventory()
-        val world = createGame(data)
+        val world = createGame(data, false)
         clicker.teleport(LocationStatus.IN_FIELD.location(world))
     }
 }

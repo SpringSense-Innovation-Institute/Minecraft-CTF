@@ -182,7 +182,7 @@ private fun makeSelfGame(player: String, group: Int, default: Boolean, playerCou
         playerCountPerGroup = playerCount,
         randomMap = randomMap,
     )
-    val world = createGame(setting)
+    val world = createGame(setting, false)
     p.teleport(LocationStatus.IN_FIELD.location(world))
 }
 
@@ -210,7 +210,7 @@ private fun makeGame(player1: String, group1: Int, setting1: MatchSetting, playe
         playerCountPerGroup = setting1.playersPerGroup,
         randomMap = randomMap,
     )
-    val world = createGame(setting)
+    val world = createGame(setting, true)
     p1.teleport(LocationStatus.IN_FIELD.location(world))
     p2.teleport(LocationStatus.IN_FIELD.location(world))
 }

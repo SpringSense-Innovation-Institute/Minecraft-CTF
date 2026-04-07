@@ -153,7 +153,7 @@ fun HumanEntity.replayRecord(file: File)
     }
 }
 
-fun createGame(data: GameSettingData): GameWorld
+fun createGame(data: GameSettingData, timeout: Boolean): GameWorld
 {
     var world: GameWorld? = null
     val date = Date()
@@ -165,7 +165,7 @@ fun createGame(data: GameSettingData): GameWorld
         data,
         record,
     )
-    world.prepareGame()
+    world.prepareGame(timeout)
     return world
 }
 
