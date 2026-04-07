@@ -82,7 +82,6 @@ fun removeGameWorld(name: String)
 
 fun checkGameWorldRecycle(name: String)
 {
-    warning("正在检查世界 $name 是否可以回收...${getGameWorld(name)}")
     val world = getGameWorld(name) ?: return
     if (world.canRecycle()) removeGameWorld(name)
 }

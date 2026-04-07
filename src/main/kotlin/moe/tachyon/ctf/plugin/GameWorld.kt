@@ -4,7 +4,6 @@ import org.bukkit.*
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.event.player.PlayerMoveEvent
 import taboolib.common.platform.function.submit
-import taboolib.common.platform.function.warning
 import taboolib.common.platform.service.PlatformExecutor
 import taboolib.module.chat.colored
 import taboolib.platform.util.buildItem
@@ -28,14 +27,7 @@ class GameWorld(
         set(value)
         {
             field = value
-            if (value == GameStatus.IN_GAME)
-            {
-                warning("游戏已开始，玩家分组将被冻结!")
-            }
-            else
-            {
-                updateTeam()
-            }
+            updateTeam()
         }
 
     @OptIn(ExperimentalAtomicApi::class)
@@ -44,7 +36,6 @@ class GameWorld(
     @OptIn(ExperimentalAtomicApi::class)
     fun canRecycle(): Boolean
     {
-        warning("check: $gameStatus ${getPlayers().size} ${used.load()}")
         if (!gameStatus.preparing() && !gameStatus.none()) return false
         if (getPlayers().isNotEmpty()) return false
         if (!used.load()) return false
@@ -133,16 +124,26 @@ class GameWorld(
         }
     }
 
-    fun playerPrepared(playerName: String)
+    fun playerPrepared(playerName: String?)
     {
         if (gameStatus != GameStatus.PREPARING) return
-        val team = getPlayerTeam(playerName)
-        if (team == PlayerTeam.NONE) return
-        preparedPlayers.add(playerName)
 
-        broadcastMessage(
-            "${if (team == PlayerTeam.LEFT) "&c" else "&b"}$playerName &6is ready! &7(${preparedPlayers.size}/${playerCountPerGroup * 2})".colored()
-        )
+        playerName?.let()
+        {
+            val team = getPlayerTeam(playerName)
+            if (team == PlayerTeam.NONE) return
+            preparedPlayers.add(playerName)
+
+            broadcastMessage(
+                "${if (team == PlayerTeam.LEFT) "&c" else "&b"}$playerName &6is ready! &7(${preparedPlayers.size}/${playerCountPerGroup * 2})".colored()
+            )
+        }
+
+        val sb = StringBuilder()
+        sb.append("&6已准备: ")
+        leftGroupPlayers().filter { preparedPlayers.contains(it) }.forEach { sb.append("&c$it &6") }
+        rightGroupPlayers().filter { preparedPlayers.contains(it) }.forEach { sb.append("&b$it &6") }
+        broadcastMessage(sb.toString().colored())
 
         val status = getPlayersPreparedStatus()
         if (status.leftPlayerCount != playerCountPerGroup && leftGroupNumber != 0)
@@ -192,6 +193,7 @@ class GameWorld(
     {
         updateTeam()
         preparedPlayers.remove(name)
+        playerPrepared(null)
         checkGameWorldRecycle(this.name)
     }
 
