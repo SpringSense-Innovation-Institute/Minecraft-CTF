@@ -184,7 +184,7 @@ private fun canDropFlag(location: Location): Boolean
 @SubscribeEvent
 private fun onPlayerMessage(event: AsyncPlayerChatEvent)
 {
-    if (event.message == PLAYER_PREPARE_MESSAGE)
+    if (event.message.equals(PLAYER_PREPARE_MESSAGE, ignoreCase = true))
     {
         getGameWorlds().forEach { it.playerPrepared(event.player.name) }
         event.isCancelled = true

@@ -148,10 +148,15 @@ private val matchMessageRegex = Regex("with (?<team>(\\d+)|none|random|default) 
 @SubscribeEvent
 private fun onPlayerMatch(event: AsyncPlayerChatEvent)
 {
-    if (event.player.world != Bukkit.getWorld("world")) return
-    if (matchMessageRegex.matches(event.message))
+    if (event.player.world.name != "world")
     {
-        val matchResult = matchMessageRegex.matchEntire(event.message) ?: return
+        val gameWorld = getGameWorld(event.player.world.name) ?: return
+        if (gameWorld.gameStatus.inGame() || gameWorld.gameStatus.preparing())
+            return
+    }
+    if (matchMessageRegex.matches(event.message.lowercase()))
+    {
+        val matchResult = matchMessageRegex.matchEntire(event.message.lowercase()) ?: return
         val team = matchResult.groups["team"]?.value ?: return
         val count = matchResult.groups["count"]?.value?.toIntOrNull() ?: return
         val map = matchResult.groups["map"]?.value ?: return
