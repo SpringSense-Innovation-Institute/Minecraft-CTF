@@ -4,7 +4,6 @@ import org.bukkit.*
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.event.player.PlayerMoveEvent
 import taboolib.common.platform.function.submit
-import taboolib.common.platform.function.warning
 import taboolib.common.platform.service.PlatformExecutor
 import taboolib.module.chat.colored
 import taboolib.platform.util.buildItem
@@ -26,9 +25,10 @@ class GameWorld(
 
     fun addPlayer(player: String, group: Group)
     {
-        Bukkit.getPlayer(player)?.teleport(LocationStatus.IN_FIELD.location(this)) ?: return
+        val p = Bukkit.getPlayer(player) ?: return
         if (group == leftGroup) leftGroupPlayers += player
         else if (group == rightGroup) rightGroupPlayers += player
+        p.teleport(LocationStatus.IN_FIELD.location(this))
         updateTeam()
     }
 
@@ -188,10 +188,8 @@ class GameWorld(
         if (!gameStatus.inGame())
         {
             player.gameMode = GameMode.CREATIVE
-            if (gameStatus.preparing() && player.name in leftGroupPlayers || player.name in rightGroupPlayers)
-            {
+            if (gameStatus.preparing() && (player.name in leftGroupPlayers || player.name in rightGroupPlayers))
                 player.sendMessage(GAME_PREPARED_MESSAGE)
-            }
             return
         }
         val team = getPlayerTeam(name)
