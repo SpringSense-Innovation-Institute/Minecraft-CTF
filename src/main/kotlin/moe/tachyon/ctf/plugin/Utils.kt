@@ -2,6 +2,7 @@ package moe.tachyon.ctf.plugin
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.mainWorld
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.server
 import org.bukkit.Bukkit
 import org.bukkit.Location
@@ -171,7 +172,7 @@ fun createGame(data: GameSettingData, timeout: Boolean): GameWorld
     return world
 }
 
-fun HumanEntity.teleportToWorld(world: World = Bukkit.getWorld(MAIN_WORLD_NAME)!!)
+fun HumanEntity.teleportToWorld(world: World = mainWorld)
 {
     teleport(Location(world, 0.5, 1.0, 0.5))
 }

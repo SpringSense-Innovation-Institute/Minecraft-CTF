@@ -1,5 +1,6 @@
 package moe.tachyon.ctf.plugin
 
+import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.mainWorld
 import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.Location
@@ -135,7 +136,7 @@ private fun onPlayerChangeWorld(event: PlayerChangedWorldEvent)
     from?.onPlayerQuit(event.player.name)
     world?.onPlayerJoin(event.player.name)
 
-    if (event.player.world.name == MAIN_WORLD_NAME)
+    if (event.player.world == mainWorld)
     {
         event.player.inventory.clear()
         event.player.gameMode = GameMode.CREATIVE
@@ -147,7 +148,7 @@ private fun onPlayerChangeWorld(event: PlayerChangedWorldEvent)
 @SubscribeEvent(ignoreCancelled = true)
 private fun onPlayerMatch(event: AsyncPlayerChatEvent)
 {
-    if (event.player.world.name != MAIN_WORLD_NAME)
+    if (event.player.world != mainWorld)
     {
         val gameWorld = getGameWorld(event.player.world.name) ?: return
         if (gameWorld.gameStatus.inGame() || gameWorld.gameStatus.preparing())

@@ -1,5 +1,6 @@
 package moe.tachyon.ctf.plugin
 
+import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.mainWorld
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.recordsFolder
 import org.bukkit.Bukkit
 import org.bukkit.Material
@@ -15,7 +16,7 @@ import taboolib.platform.util.submit
 
 fun HumanEntity.openMenu()
 {
-    if (world == Bukkit.getWorld(MAIN_WORLD_NAME)) openMainMenu()
+    if (world == mainWorld) openMainMenu()
     else openWorldMenu()
 }
 
