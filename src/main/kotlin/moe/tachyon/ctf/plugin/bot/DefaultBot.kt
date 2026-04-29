@@ -3,11 +3,9 @@ package moe.tachyon.ctf.plugin.bot
 import moe.tachyon.ctf.plugin.GameWorld
 import moe.tachyon.ctf.plugin.isBanner
 import org.bukkit.Location
-import org.bukkit.util.Vector
-import taboolib.common.platform.function.onlinePlayers
-import taboolib.module.chat.colored
-import java.util.PriorityQueue
+import java.util.*
 import kotlin.math.abs
+import kotlin.math.sqrt
 
 open class DefaultBot(world: GameWorld): Bot(world)
 {
@@ -80,7 +78,7 @@ open class DefaultBot(world: GameWorld): Bot(world)
     // 使用A*，返回(1,0)/(-1,0)/(0,1)/(0,-1)之一，表示现在的位置应该向哪个方向移动
     private fun findPath(map: List<List<MapElement>>, start: Pair<Int, Int>, end: Pair<Int, Int>): Pair<Int, Int>
     {
-        val priorityQueue = PriorityQueue<Triple<Int, Pair<Int, Int>, Pair<Int, Int>>>(compareBy()
+        val priorityQueue = PriorityQueue<Triple<Double, Pair<Int, Int>, Pair<Int, Int>>>(compareBy()
         {
             it.first + abs(it.second.first - end.first) + abs(it.second.second - end.second)
         })
@@ -91,14 +89,19 @@ open class DefaultBot(world: GameWorld): Bot(world)
             (map[x][z].passable() || Pair(x, z) == end)
         }
 
-        if (passable(start.first + 1, start.second))
-            priorityQueue.add(Triple(1, Pair(start.first + 1, start.second), 1 to 0))
-        if (passable(start.first - 1, start.second))
-            priorityQueue.add(Triple(1, Pair(start.first - 1, start.second), -1 to 0))
-        if (passable(start.first, start.second + 1))
-            priorityQueue.add(Triple(1, Pair(start.first, start.second + 1), 0 to 1))
-        if (passable(start.first, start.second - 1))
-            priorityQueue.add(Triple(1, Pair(start.first, start.second - 1), 0 to -1))
+        val directions = listOf(
+            Pair(1, 0),
+            Pair(-1, 0),
+            Pair(0, 1),
+            Pair(0, -1),
+
+            Pair(-1, -1),
+            Pair(-1, 1),
+            Pair(1, -1),
+            Pair(1, 1),
+        )
+
+        priorityQueue.add(Triple(0.0, start, 0 to 0))
 
         val visited = mutableSetOf<Pair<Int, Int>>()
         while (priorityQueue.isNotEmpty())
@@ -108,14 +111,21 @@ open class DefaultBot(world: GameWorld): Bot(world)
             visited.add(current)
             if (current == end) return firstStep
 
-            if (passable(current.first + 1, current.second))
-                priorityQueue.add(Triple(cost + 1, Pair(current.first + 1, current.second), firstStep))
-            if (passable(current.first - 1, current.second))
-                priorityQueue.add(Triple(cost + 1, Pair(current.first - 1, current.second), firstStep))
-            if (passable(current.first, current.second + 1))
-                priorityQueue.add(Triple(cost + 1, Pair(current.first, current.second + 1), firstStep))
-            if (passable(current.first, current.second - 1))
-                priorityQueue.add(Triple(cost + 1, Pair(current.first, current.second - 1), firstStep))
+            for (d in directions)
+            {
+                if (d.first != 0)
+                    if (!passable(current.first + d.first, current.second))
+                        continue
+                if (d.second != 0)
+                    if (!passable(current.first, current.second + d.second))
+                        continue
+                if (!passable(current.first + d.first, current.second + d.second))
+                    continue
+
+                val newCost = cost + sqrt((d.first * d.first + d.second * d.second).toDouble())
+                val next = Pair(current.first + d.first, current.second + d.second)
+                priorityQueue.add(Triple(newCost, next, if (firstStep == Pair(0, 0)) d else firstStep))
+            }
         }
 
         return 0 to 0
