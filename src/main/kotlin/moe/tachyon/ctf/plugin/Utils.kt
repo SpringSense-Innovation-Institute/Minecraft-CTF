@@ -1,8 +1,11 @@
 package moe.tachyon.ctf.plugin
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.server
 import org.bukkit.Bukkit
 import org.bukkit.Location
+import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.entity.Entity
 import org.bukkit.entity.HumanEntity
@@ -12,11 +15,10 @@ import taboolib.common.util.random
 import taboolib.common.util.randomDouble
 import taboolib.platform.BukkitPlugin
 import taboolib.platform.util.title
-import java.io.DataInputStream
-import java.io.DataOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.random.Random
 
 enum class LocationStatus
 {
@@ -115,13 +117,13 @@ fun locationStatus(location: Location): LocationStatus
 }
 
 data class GameSettingData(
-    var leftGroupNumber: Int = 1,
-    var rightGroupNumber: Int = 1,
+    var leftGroup: Group = Group.PlayerGroup(1),
+    var rightGroup: Group = Group.PlayerGroup(1),
     var playerCountPerGroup: Int = 1,
     var randomMap: Boolean = true,
 )
 
-private fun randomId() = (System.currentTimeMillis()%0x1000000).toString(16)
+private fun randomId() = Random.nextLong().toString(36).take(4).padStart(4, '0')
 
 fun HumanEntity.replayRecord(file: File)
 {
@@ -159,9 +161,9 @@ fun createGame(data: GameSettingData, timeout: Boolean): GameWorld
     val date = Date()
     val format = SimpleDateFormat("yy-MM-dd_HH-mm-ss")
     val prefix = practiceMode?.name?.plus("_") ?: ""
-    val record = GameRecord.file({ world!! }, "${prefix}${format.format(date)}_${data.leftGroupNumber}vs${data.rightGroupNumber}_${randomId()}")
+    val record = GameRecord.file({ world!! }, "${prefix}${format.format(date)}_${data.leftGroup.name}-vs-${data.rightGroup.name}_${randomId()}")
     world = generateGameWorld(
-        "game-${data.leftGroupNumber}vs${data.rightGroupNumber}-${randomId()}",
+        "game-${data.leftGroup.name}-vs-${data.rightGroup.name}-${randomId()}",
         data,
         record,
     )
@@ -169,7 +171,7 @@ fun createGame(data: GameSettingData, timeout: Boolean): GameWorld
     return world
 }
 
-fun HumanEntity.teleportToWorld(world: World = Bukkit.getWorld("world")!!)
+fun HumanEntity.teleportToWorld(world: World = Bukkit.getWorld(MAIN_WORLD_NAME)!!)
 {
     teleport(Location(world, 0.5, 1.0, 0.5))
 }
@@ -177,8 +179,13 @@ fun HumanEntity.teleportToWorld(world: World = Bukkit.getWorld("world")!!)
 fun getPlayerGroup(player: String): Int? =
     player.split("-").getOrNull(1)?.toIntOrNull()
 
+fun Material?.isBanner(): Boolean =
+    this == Material.BLUE_BANNER || this == Material.RED_BANNER
+
+@Serializable
 data class StatisticData(
     var withNoneTimes: MutableMap<Int, Long> = mutableMapOf(),
+    var withBotTimes: MutableMap<Int, Long> = mutableMapOf(),
     var withOtherTimes: MutableMap<Int, Long> = mutableMapOf(),
     var catchTimes: MutableMap<Int, Long> = mutableMapOf(),
     var getFlagTimes: MutableMap<Int, Long> = mutableMapOf(),
@@ -191,58 +198,20 @@ private fun getStatisticData(filename: String): StatisticData = synchronized(sta
 {
     val file = BukkitPlugin.getInstance().dataFolder.resolve("$filename.dat")
     if (!file.exists()) return StatisticData()
-    val input = DataInputStream(file.inputStream())
-    val withNoneTimes = mutableMapOf<Int, Long>()
-    val withOtherTimes = mutableMapOf<Int, Long>()
-    val catchTimes = mutableMapOf<Int, Long>()
-    val getFlagTimes = mutableMapOf<Int, Long>()
-    val totalTime = mutableMapOf<Int, Long>()
-    val winTimes = mutableMapOf<Int, Long>()
-    while (input.available() > 0)
+    return@synchronized runCatching()
     {
-        val field = input.readUTF()
-        val size = input.readInt()
-        repeat(size)
-        {
-            val group = input.readInt()
-            val time = input.readLong()
-            when (field)
-            {
-                "withNoneTimes" -> withNoneTimes[group] = time
-                "withOtherTimes" -> withOtherTimes[group] = time
-                "catchTimes" -> catchTimes[group] = time
-                "getFlagTimes" -> getFlagTimes[group] = time
-                "totalTime" -> totalTime[group] = time
-                "winTimes" -> winTimes[group] = time
-            }
-        }
+        Json.decodeFromString<StatisticData>(file.readText())
+    }.getOrElse()
+    {
+        StatisticData()
     }
-    return StatisticData(withNoneTimes, withOtherTimes, catchTimes, getFlagTimes, totalTime, winTimes)
 }
 
 private fun saveStatisticData(filename: String, data: StatisticData) = synchronized(statisticFileLock)
 {
     val file = BukkitPlugin.getInstance().dataFolder.resolve("$filename.dat")
-    DataOutputStream(file.outputStream()).use()
-    { output ->
-        listOf(
-            "withNoneTimes" to data.withNoneTimes,
-            "withOtherTimes" to data.withOtherTimes,
-            "catchTimes" to data.catchTimes,
-            "getFlagTimes" to data.getFlagTimes,
-            "totalTime" to data.totalTime,
-            "winTimes" to data.winTimes,
-        ).forEach()
-        { (field, map) ->
-            output.writeUTF(field)
-            output.writeInt(map.size)
-            map.forEach()
-            { (group, time) ->
-                output.writeInt(group)
-                output.writeLong(time)
-            }
-        }
-    }
+    if (!file.parentFile.exists()) file.parentFile.mkdirs()
+    file.writeText(Json.encodeToString(data))
 }
 
 fun updateStatisticData(
@@ -261,30 +230,7 @@ fun setupServer()
     { exchange ->
         val statistic = getStatisticData(practiceMode?.name ?: "statistics")
 
-        val sb = StringBuilder()
-
-        sb.append("{")
-        sb.append("\"withNoneTimes\": {")
-        sb.append(statistic.withNoneTimes.entries.joinToString(",") { "\"${it.key}\": ${it.value}" })
-        sb.append("},")
-        sb.append("\"withOtherTimes\": {")
-        sb.append(statistic.withOtherTimes.entries.joinToString(",") { "\"${it.key}\": ${it.value}" })
-        sb.append("},")
-        sb.append("\"catchTimes\": {")
-        sb.append(statistic.catchTimes.entries.joinToString(",") { "\"${it.key}\": ${it.value}" })
-        sb.append("},")
-        sb.append("\"getFlagTimes\": {")
-        sb.append(statistic.getFlagTimes.entries.joinToString(",") { "\"${it.key}\": ${it.value}" })
-        sb.append("},")
-        sb.append("\"totalTime\": {")
-        sb.append(statistic.totalTime.entries.joinToString(",") { "\"${it.key}\": ${it.value}" })
-        sb.append("},")
-        sb.append("\"winTimes\": {")
-        sb.append(statistic.winTimes.entries.joinToString(",") { "\"${it.key}\": ${it.value}" })
-        sb.append("}")
-        sb.append("}")
-
-        val r = sb.toString()
+        val r = Json.encodeToString(statistic)
 
         exchange.sendResponseHeaders(200, r.toByteArray().size.toLong())
         exchange.responseHeaders.add("Content-Type", "application/json")
@@ -293,6 +239,7 @@ fun setupServer()
         os.write(r.toByteArray())
         os.close()
     }
+
     server.executor = null
     server.start()
 }

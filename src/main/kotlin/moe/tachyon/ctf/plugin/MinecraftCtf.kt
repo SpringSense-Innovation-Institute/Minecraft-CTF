@@ -10,6 +10,8 @@ import taboolib.common.util.random
 import taboolib.platform.BukkitPlugin
 import java.net.InetSocketAddress
 
+const val MAIN_WORLD_NAME = "lobby_world"
+
 object MinecraftCtfPlugin: Plugin()
 {
     val recordsFolder by lazy { BukkitPlugin.getInstance().dataFolder.resolve("records") }
@@ -66,4 +68,30 @@ enum class GameStatus
     fun inGame() = this == IN_GAME
     fun preparing() = this == PREPARING
     fun replaying() = this == REPLAYING
+}
+
+sealed interface Group
+{
+    val name: String
+        get() = when (this)
+        {
+            is PlayerGroup  -> "Group$id"
+            None            -> "none"
+            Bot.DEFAULT     -> "DefaultBot"
+            Bot.JUMP_SPRINT -> "JumpSprintBot"
+        }
+
+    val isNone get() = this is None
+    val isBot get() = this is Bot
+    val isPlayer get() = this is PlayerGroup
+
+    val id: Int? get() = null
+
+    data class PlayerGroup(override val id: Int): Group
+    data object None: Group
+    enum class Bot: Group
+    {
+        DEFAULT,
+        JUMP_SPRINT,
+    }
 }

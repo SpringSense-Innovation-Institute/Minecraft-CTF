@@ -47,8 +47,8 @@ fun generateGameWorld(
 
     val gameWorld = GameWorld(
         name = name,
-        leftGroupNumber = setting.leftGroupNumber,
-        rightGroupNumber = setting.rightGroupNumber,
+        leftGroup = setting.leftGroup,
+        rightGroup = setting.rightGroup,
         record = record,
         randomMap = setting.randomMap,
         playerCountPerGroup = setting.playerCountPerGroup,

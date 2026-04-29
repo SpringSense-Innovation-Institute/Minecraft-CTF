@@ -3,8 +3,6 @@ package moe.tachyon.ctf.plugin
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.recordsFolder
 import org.bukkit.Bukkit
 import org.bukkit.Material
-import org.bukkit.boss.BarColor
-import org.bukkit.boss.BarStyle
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.HumanEntity
 import taboolib.module.chat.colored
@@ -17,7 +15,7 @@ import taboolib.platform.util.submit
 
 fun HumanEntity.openMenu()
 {
-    if (world == Bukkit.getWorld("world")) openMainMenu()
+    if (world == Bukkit.getWorld(MAIN_WORLD_NAME)) openMainMenu()
     else openWorldMenu()
 }
 
@@ -162,8 +160,8 @@ private fun HumanEntity.chooseWorldMenu(): Unit = openMenu<PageableChest<GameWor
                 GameStatus.IN_GAME -> "对局进行中"
                 GameStatus.NONE -> "等待被回收"
             }}"
-            lore += "红队组号: ${element.leftGroupNumber}"
-            lore += "蓝队组号: ${element.rightGroupNumber}"
+            lore += "红队: ${element.leftGroup.name}"
+            lore += "蓝队: ${element.rightGroup.name}"
         }
     }
 
@@ -194,8 +192,8 @@ private fun HumanEntity.openGameSettingsMenu(): Unit = openMenu<Chest>()
     set('A', buildItem(Material.PLAYER_HEAD)
     {
         name = "玩家分组"
-        lore += "&c当前红队组号: ${data.leftGroupNumber}".colored()
-        lore += "&9当前蓝队组号: ${data.rightGroupNumber}".colored()
+        lore += "&c当前红队组号: ${data.leftGroup}".colored()
+        lore += "&9当前蓝队组号: ${data.rightGroup}".colored()
         lore += "每组玩家人数: ${data.playerCountPerGroup}".colored()
     }) { clicker.openPlayerGroupingMenu() }
     set('B', buildItem(Material.MAP) { name = "地图设置" }) { clicker.openMapSettingsMenu() }
@@ -230,12 +228,12 @@ private fun HumanEntity.openPlayerGroupingMenu()
         set('A', buildItem(Material.RED_WOOL)
         {
             name = "红队"
-            lore += "当前组号: ${data.leftGroupNumber}"
+            lore += "当前组号: ${data.leftGroup}"
         }) { clicker.openGroupInputMenu(PlayerTeam.LEFT) }
         set('B', buildItem(Material.BLUE_WOOL)
         {
             name = "蓝队"
-            lore += "当前组号: ${data.rightGroupNumber}"
+            lore += "当前组号: ${data.rightGroup}"
         }) { clicker.openGroupInputMenu(PlayerTeam.RIGHT) }
         set('C', buildItem(Material.OMINOUS_TRIAL_KEY)
         {
@@ -280,7 +278,7 @@ context(data: GameSettingData)
 private fun HumanEntity.openGroupInputMenu(team: PlayerTeam): Unit = openMenu<Anvil>()
 {
     title = if (team == PlayerTeam.LEFT) "输入红队组号" else "输入蓝队组号"
-    set(0, buildItem(Material.PAPER) { name = if (team == PlayerTeam.LEFT) "${data.leftGroupNumber}" else "${data.rightGroupNumber}" })
+    set(0, buildItem(Material.PAPER) { name = if (team == PlayerTeam.LEFT) "${data.leftGroup}" else "${data.rightGroup}" })
 
     onRename()
     { player, text, inventory ->
@@ -306,9 +304,9 @@ private fun HumanEntity.openGroupInputMenu(team: PlayerTeam): Unit = openMenu<An
         if (text?.toIntOrNull() == null)
             return@onClick it.inventory.setItem(2, buildItem(Material.RED_STAINED_GLASS_PANE) { name = "请输入一个有效的整数!" })
         if (team == PlayerTeam.LEFT)
-            data.leftGroupNumber = text.toInt()
+            data.leftGroup = Group.PlayerGroup(text.toInt())
         else
-            data.rightGroupNumber = text.toInt()
+            data.rightGroup = Group.PlayerGroup(text.toInt())
         it.clicker.openPlayerGroupingMenu()
     }
     
@@ -397,15 +395,14 @@ private fun HumanEntity.openReplaySettingsMenu()
     submit(async = true)
     {
         val items = recordsFolder.listFiles { file -> file.extension == "dat" }?.toList() ?: emptyList()
-        val cloudItems = getRecords()
 
-        val allItems = (items.map { Triple(it.nameWithoutExtension, it.length(), false) } + cloudItems.map { Triple(it.first, it.second, true) })
+        val allItems = (items.map { it.nameWithoutExtension to it.length() })
             .distinctBy { it.first }
             .sortedByDescending { it.first }
 
         submit(async = false)
         {
-            openMenu<PageableChest<Triple<String, Long, Boolean>>>()
+            openMenu<PageableChest<Pair<String, Long>>>()
             {
                 title = "回放管理"
 
@@ -456,53 +453,17 @@ private fun HumanEntity.openReplaySettingsMenu()
                                 "文件大小: ${"%.2f".format(element.second / 1024.0)} KB"
                             else
                                 "文件大小: ${"%.2f".format(element.second / (1024.0 * 1024.0))} MB"
-                        lore += if (element.third) "存储位置: 云端" else "存储位置: 本地"
                     }
                 }
 
                 onClick()
                 { event, element ->
                     event.clicker.closeInventory()
-                    if (element.third)
-                    {
-                        event.clicker.closeInventory()
-                        submit(async = true)
-                        {
-                            val downloadBar = Bukkit.createBossBar(
-                                "&e正在下载回放...(${element.first})".colored(),
-                                BarColor.BLUE,
-                                BarStyle.SEGMENTED_20
-                            )
-
-                            try
-                            {
-                                downloadBar.addPlayer(event.clicker)
-                                downloadRecord(element.first)
-                                { cur, tot ->
-                                    if (tot == 0L) return@downloadRecord
-                                    downloadBar.progress = (cur.toDouble() / tot.toDouble()).coerceIn(0.0, 1.0)
-                                }
-                            }
-                            finally
-                            {
-                                downloadBar.removeAll()
-                            }
-
-                            val recordFile = recordsFolder.resolve(element.first + ".dat")
-                            if (recordFile.exists())
-                                replayRecord(recordFile)
-                            else
-                                event.clicker.sendMessage("&c下载出现了问题，回放文件不存在!".colored())
-                        }
-                    }
+                    val recordFile = recordsFolder.resolve(element.first + ".dat")
+                    if (recordFile.exists())
+                        replayRecord(recordFile)
                     else
-                    {
-                        val recordFile = recordsFolder.resolve(element.first + ".dat")
-                        if (recordFile.exists())
-                            replayRecord(recordFile)
-                        else
-                            event.clicker.sendMessage("&c回放文件不存在!".colored())
-                    }
+                        event.clicker.sendMessage("&c回放文件不存在!".colored())
                 }
 
                 elements { allItems }
@@ -540,10 +501,9 @@ private fun HumanEntity.openPracticeSettingMenu(): Unit = openMenu<Chest>()
         name = "匹配设置"
         lore += "当前设置: " + when (data.enemy)
         {
-            Enemy.Default  -> "默认敌人"
-            Enemy.None     -> "无敌人"
-            Enemy.Random   -> "随机敌人"
-            else           -> "未指定"
+            is Enemy.Specific  -> data.enemy.group.name
+            Enemy.Any  -> "随机敌人"
+            null       -> "未指定"
         }
     }) { clicker.openPracticeEnemySettingMenu() }
 
@@ -554,8 +514,8 @@ private fun HumanEntity.openPracticeSettingMenu(): Unit = openMenu<Chest>()
         {
             MapType.FIXED -> "固定地图"
             MapType.RANDOM -> "随机地图"
-            MapType.UNSPECIFIED -> "任意地图"
-            null -> "未指定"
+            MapType.ANY    -> "任意地图"
+            null           -> "未指定"
         }
     }) { clicker.openPracticeMapSettingMenu() }
 
@@ -575,17 +535,16 @@ private fun HumanEntity.openPracticeSettingMenu(): Unit = openMenu<Chest>()
             lore += "名字：${p.name}"
             lore += "匹配模式：" + when (p.enemy)
             {
-                Enemy.Default  -> "默认敌人"
-                Enemy.None     -> "无敌人"
-                Enemy.Random   -> "随机敌人"
-                else           -> "未指定"
+                is Enemy.Specific -> p.enemy.group.name
+                Enemy.Any  -> "随机敌人"
+                null       -> "未指定"
             }
             lore += "地图类型：" + when (p.mapType)
             {
                 MapType.FIXED -> "固定地图"
                 MapType.RANDOM -> "随机地图"
-                MapType.UNSPECIFIED -> "任意地图"
-                null -> "未指定"
+                MapType.ANY    -> "任意地图"
+                null           -> "未指定"
             }
             lore += "每队玩家人数：${p.playersPerGroup ?: "未指定"}"
         }
@@ -643,10 +602,10 @@ private fun HumanEntity.openPracticeEnemySettingMenu(): Unit = openMenu<Chest>()
     set('A', buildItem(Material.BARRIER)
     {
         name = "none"
-        if (data.enemy is Enemy.None) enchants[Enchantment.MENDING] = 1
+        if (data.enemy is Enemy.Specific && data.enemy.group.isNone) enchants[Enchantment.MENDING] = 1
     })
     {
-        context(data.copy(enemy = Enemy.None))
+        context(data.copy(enemy = Enemy.Specific(Group.None)))
         {
             clicker.openPracticeSettingMenu()
         }
@@ -655,10 +614,10 @@ private fun HumanEntity.openPracticeEnemySettingMenu(): Unit = openMenu<Chest>()
     set('B', buildItem(Material.ZOMBIE_HEAD)
     {
         name = "default"
-        if (data.enemy is Enemy.Default) enchants[Enchantment.MENDING] = 1
+        if (data.enemy is Enemy.Specific && data.enemy.group.isBot) enchants[Enchantment.MENDING] = 1
     })
     {
-        context(data.copy(enemy = Enemy.Default))
+        context(data.copy(enemy = Enemy.Specific(Group.Bot.DEFAULT)))
         {
             clicker.openPracticeSettingMenu()
         }
@@ -667,10 +626,10 @@ private fun HumanEntity.openPracticeEnemySettingMenu(): Unit = openMenu<Chest>()
     set('C', buildItem(Material.ENDER_PEARL)
     {
         name = "random"
-        if (data.enemy is Enemy.Random) enchants[Enchantment.MENDING] = 1
+        if (data.enemy is Enemy.Any) enchants[Enchantment.MENDING] = 1
     })
     {
-        context(data.copy(enemy = Enemy.Random))
+        context(data.copy(enemy = Enemy.Any))
         {
             clicker.openPracticeSettingMenu()
         }
@@ -723,10 +682,10 @@ private fun HumanEntity.openPracticeMapSettingMenu(): Unit = openMenu<Chest>()
     set('C', buildItem(Material.ENDER_PEARL)
     {
         name = "unspecified"
-        if (data.mapType == MapType.UNSPECIFIED) enchants[Enchantment.MENDING] = 1
+        if (data.mapType == MapType.ANY) enchants[Enchantment.MENDING] = 1
     })
     {
-        context(data.copy(mapType = MapType.UNSPECIFIED))
+        context(data.copy(mapType = MapType.ANY))
         {
             clicker.openPracticeSettingMenu()
         }

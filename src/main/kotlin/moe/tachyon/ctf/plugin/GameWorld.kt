@@ -4,6 +4,7 @@ import org.bukkit.*
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.event.player.PlayerMoveEvent
 import taboolib.common.platform.function.submit
+import taboolib.common.platform.function.warning
 import taboolib.common.platform.service.PlatformExecutor
 import taboolib.module.chat.colored
 import taboolib.platform.util.buildItem
@@ -12,8 +13,8 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 class GameWorld(
     val name: String,
-    val leftGroupNumber: Int,
-    val rightGroupNumber: Int,
+    val leftGroup: Group,
+    val rightGroup: Group,
     val record: GameRecord,
     val randomMap: Boolean,
     val playerCountPerGroup: Int,
@@ -22,6 +23,14 @@ class GameWorld(
 {
     private val leftGroupPlayers = mutableSetOf<String>()
     private val rightGroupPlayers = mutableSetOf<String>()
+
+    fun addPlayer(player: String, group: Group)
+    {
+        Bukkit.getPlayer(player)?.teleport(LocationStatus.IN_FIELD.location(this)) ?: return
+        if (group == leftGroup) leftGroupPlayers += player
+        else if (group == rightGroup) rightGroupPlayers += player
+        updateTeam()
+    }
 
     var gameStatus = GameStatus.NONE
         set(value)
@@ -65,36 +74,6 @@ class GameWorld(
         val players = getPlayers()
         players.forEach()
         {
-            if (it.startsWith("CTF-${leftGroupNumber}-"))
-            {
-                leftGroupPlayers += it
-                rightGroupPlayers -= it
-            }
-            else if (it.startsWith("CTF-${rightGroupNumber}-"))
-            {
-                rightGroupPlayers += it
-                leftGroupPlayers -= it
-            }
-        }
-
-        leftGroupPlayers().forEach()
-        {
-            if (!it.startsWith("CTF-${leftGroupNumber}-") || players.none { player -> player == it })
-            {
-                leftGroupPlayers -= it
-            }
-        }
-
-        rightGroupPlayers().forEach()
-        {
-            if (!it.startsWith("CTF-${rightGroupNumber}-") || players.none { player -> player == it })
-            {
-                rightGroupPlayers -= it
-            }
-        }
-
-        players.forEach()
-        {
             val player = Bukkit.getPlayer(it) ?: return@forEach
             Bukkit.getPluginManager().callEvent(PlayerMoveEvent(player, player.location, player.location))
         }
@@ -106,17 +85,17 @@ class GameWorld(
     fun prepareGame(timeout: Boolean = true)
     {
         gameStatus = GameStatus.PREPARING
-        broadcastMessage("&6$leftGroupNumber VS $rightGroupNumber 的对决即将开始，请做好准备!".colored())
+        broadcastMessage("&6${leftGroup.name} VS ${rightGroup.name} 的对决即将开始，请做好准备!".colored())
 
         preparedPlayers.clear()
         if (timeout) submit(delay = 600)
         {
             if (gameStatus == GameStatus.PREPARING)
             {
-                if (leftGroupNumber == 0 && rightGroupNumber == 0) return@submit
+                if (leftGroup.isNone && rightGroup.isNone) return@submit
 
-                val leftGroupIsReady = leftGroupPlayers.size == playerCountPerGroup && leftGroupPlayers.all { it in preparedPlayers } || leftGroupNumber == 0
-                val rightGroupIsReady = rightGroupPlayers.size == playerCountPerGroup && rightGroupPlayers.all { it in preparedPlayers } || rightGroupNumber == 0
+                val leftGroupIsReady = leftGroupPlayers.size == playerCountPerGroup && leftGroupPlayers.all { it in preparedPlayers } || leftGroup.isNone
+                val rightGroupIsReady = rightGroupPlayers.size == playerCountPerGroup && rightGroupPlayers.all { it in preparedPlayers } || rightGroup.isNone
 
                 if (!leftGroupIsReady || !rightGroupIsReady)
                     stopGame(PlayerTeam.NONE)
@@ -130,6 +109,7 @@ class GameWorld(
 
         playerName?.let()
         {
+            if (playerName in preparedPlayers) return
             val team = getPlayerTeam(playerName)
             if (team == PlayerTeam.NONE) return
             preparedPlayers.add(playerName)
@@ -146,9 +126,9 @@ class GameWorld(
         broadcastMessage(sb.toString().colored())
 
         val status = getPlayersPreparedStatus()
-        if (status.leftPlayerCount != playerCountPerGroup && leftGroupNumber != 0)
+        if (status.leftPlayerCount != playerCountPerGroup && !leftGroup.isNone)
             return
-        if (status.rightPlayerCount != playerCountPerGroup && rightGroupNumber != 0)
+        if (status.rightPlayerCount != playerCountPerGroup && !rightGroup.isNone)
             return
         if (status.leftGroupUnprepared.isNotEmpty() || status.rightGroupUnprepared.isNotEmpty())
             return
@@ -181,18 +161,20 @@ class GameWorld(
         }
 
         return PlayerPreparedStatus(
-            leftGroupPrepared = left.filter { preparedPlayers.contains(it) }.toSet(),
-            leftGroupUnprepared = left.filter { !preparedPlayers.contains(it) }.toSet(),
-            rightGroupPrepared = right.filter { preparedPlayers.contains(it) }.toSet(),
-            rightGroupUnprepared = right.filter { !preparedPlayers.contains(it) }.toSet(),
+            leftGroupPrepared = left.filter { it in preparedPlayers }.toSet(),
+            leftGroupUnprepared = left.filter { it !in preparedPlayers }.toSet(),
+            rightGroupPrepared = right.filter { it in preparedPlayers }.toSet(),
+            rightGroupUnprepared = right.filter { it !in preparedPlayers }.toSet(),
         )
     }
 
 
     fun onPlayerQuit(name: String)
     {
+        preparedPlayers -= name
+        leftGroupPlayers -= name
+        rightGroupPlayers -= name
         updateTeam()
-        preparedPlayers.remove(name)
         playerPrepared(null)
         checkGameWorldRecycle(this.name)
     }
@@ -206,9 +188,7 @@ class GameWorld(
         if (!gameStatus.inGame())
         {
             player.gameMode = GameMode.CREATIVE
-            if (gameStatus.preparing() &&
-                (player.name.startsWith("CTF-${leftGroupNumber}-") ||
-                player.name.startsWith("CTF-${rightGroupNumber}-")))
+            if (gameStatus.preparing() && player.name in leftGroupPlayers || player.name in rightGroupPlayers)
             {
                 player.sendMessage(GAME_PREPARED_MESSAGE)
             }
@@ -281,22 +261,34 @@ class GameWorld(
                         player.gameMode = GameMode.CREATIVE
                     }
 
-                    player.sendTitle("&6$leftGroupNumber VS $rightGroupNumber 开始了!".colored(), "", 10, 70, 20)
+                    player.sendTitle("&6${leftGroup.name} VS ${rightGroup.name} 开始了!".colored(), "", 10, 70, 20)
                 }
                 bukkitWorld().setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true)
 
                 updateStatisticData(practice)
                 {
-                    if (leftGroupNumber == 0 || rightGroupNumber == 0)
+                    if (leftGroup is Group.PlayerGroup)
                     {
-                        val group = if (leftGroupNumber == 0) rightGroupNumber else leftGroupNumber
-                        val value = withNoneTimes[group] ?: 0
-                        withNoneTimes[group] = value + 1
+                        val mp = when (rightGroup)
+                        {
+                            is Group.Bot         -> withBotTimes
+                            Group.None           -> withNoneTimes
+                            is Group.PlayerGroup -> withOtherTimes
+                        }
+
+                        mp[leftGroup.id] = (mp[leftGroup.id] ?: 0) + 1
                     }
-                    else
+
+                    if (rightGroup is Group.PlayerGroup)
                     {
-                        withOtherTimes[leftGroupNumber] = withOtherTimes[leftGroupNumber]?.plus(1) ?: 1
-                        withOtherTimes[rightGroupNumber] = withOtherTimes[rightGroupNumber]?.plus(1) ?: 1
+                        val mp = when (leftGroup)
+                        {
+                            is Group.Bot         -> withBotTimes
+                            Group.None           -> withNoneTimes
+                            is Group.PlayerGroup -> withOtherTimes
+                        }
+
+                        mp[rightGroup.id] = (mp[rightGroup.id] ?: 0) + 1
                     }
                 }
             }
@@ -307,14 +299,14 @@ class GameWorld(
                 task?.cancel()
                 updateStatisticData(practice)
                 {
-                    if (leftGroupNumber != 0 && rightGroupNumber != 0)
+                    if (leftGroup is Group.PlayerGroup && rightGroup is Group.PlayerGroup)
                     {
-                        totalTime[leftGroupNumber] = totalTime[leftGroupNumber]?.plus(tick) ?: tick
-                        totalTime[rightGroupNumber] = totalTime[rightGroupNumber]?.plus(tick) ?: tick
+                        totalTime[leftGroup.id] = totalTime[leftGroup.id]?.plus(tick) ?: tick
+                        totalTime[rightGroup.id] = totalTime[rightGroup.id]?.plus(tick) ?: tick
                         if (winner == PlayerTeam.LEFT)
-                            winTimes[leftGroupNumber] = winTimes[leftGroupNumber]?.plus(1) ?: 1
+                            winTimes[leftGroup.id] = winTimes[leftGroup.id]?.plus(1) ?: 1
                         else
-                            winTimes[rightGroupNumber] = winTimes[rightGroupNumber]?.plus(1) ?: 1
+                            winTimes[rightGroup.id] = winTimes[rightGroup.id]?.plus(1) ?: 1
                     }
                 }
                 return@submit
@@ -352,19 +344,15 @@ class GameWorld(
         submit(async = false, delay = 1)
         {
             record.stop()
-            submit(async = true, delay = 5)
-            {
-                uploadRecord(record.file)
-            }
         }
 
         getPlayers().forEach()
         {
             val player = Bukkit.getPlayer(it) ?: return@forEach
             if (winner == PlayerTeam.NONE)
-                player.sendTitle("&6$leftGroupNumber 与 $rightGroupNumber 平局!".colored(), "", 10, 70, 20)
+                player.sendTitle("&6${leftGroup.name} 与 ${rightGroup.name} 平局!".colored(), "", 10, 70, 20)
             else
-                player.sendTitle("&6${if (winner == PlayerTeam.LEFT) leftGroupNumber else rightGroupNumber} 队获胜!".colored(), "", 10, 70, 20)
+                player.sendTitle("&6${if (winner == PlayerTeam.LEFT) leftGroup.name else rightGroup.name} 获胜!".colored(), "", 10, 70, 20)
 
             player.inventory.clear()
         }
@@ -381,8 +369,8 @@ class GameWorld(
         val leftTeamPlayer = getPlayers().count { it in leftGroupPlayers }
         val rightTeamPlayer = getPlayers().count { it in rightGroupPlayers }
 
-        val leftTeamEmpty = leftTeamPlayer == 0 && leftGroupNumber != 0
-        val rightTeamEmpty = rightTeamPlayer == 0 && rightGroupNumber != 0
+        val leftTeamEmpty = leftTeamPlayer == 0 && leftGroup !is Group.None
+        val rightTeamEmpty = rightTeamPlayer == 0 && rightGroup !is Group.None
 
         if (leftTeamEmpty && rightTeamEmpty) return PlayerTeam.NONE
         if (leftTeamEmpty) return PlayerTeam.RIGHT

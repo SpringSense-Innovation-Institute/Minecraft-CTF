@@ -19,6 +19,7 @@ plugins {
     application
     id("io.izzel.taboolib") version "2.0.36"
     kotlin("jvm") version "2.3.20"
+    kotlin("plugin.serialization") version "2.3.20"
 }
 
 application {
@@ -49,7 +50,7 @@ taboolib {
     }
     version { taboolib = "6.2.4-6b473c4" }
     relocate("top.maplex.arim", "moe.tachyon.ctf.arim")
-
+    relocate("kotlinx.serialization", "moe.tachyon.ctf.kotlinx.serialization")
 }
 
 repositories {
@@ -67,8 +68,16 @@ repositories {
 dependencies {
     compileOnly("ink.ptms.core:v12101:12101:mapped")
     compileOnly("ink.ptms.core:v12101:12101:universal")
-//    compileOnly("net.kyori:adventure-api:4.26.1")
+    compileOnly("ink.ptms.core:v11701:11701:mapped")
+    compileOnly("ink.ptms.core:v11701:11701:universal")
+    compileOnly("com.mojang:authlib:1.5.21")
     taboo(kotlin("stdlib"))
+
+    taboo("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0") { isTransitive = false }
+    taboo("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0") { isTransitive = false }
+
+
+//    compileOnly("net.kyori:adventure-api:4.26.1")
 //    taboo("top.maplex.arim:Arim:1.3.12")
     compileOnly(fileTree("libs"))
 }

@@ -12,9 +12,6 @@ import org.bukkit.event.player.PlayerRespawnEvent
 import taboolib.common.platform.event.SubscribeEvent
 import taboolib.platform.util.buildItem
 
-private fun Material?.isBanner(): Boolean =
-    this == Material.BLUE_BANNER || this == Material.RED_BANNER
-
 @SubscribeEvent
 private fun onPlayerPickupFlag(event: PlayerMoveEvent)
 {
@@ -75,7 +72,7 @@ private fun onPlayerSetFlag(event: PlayerMoveEvent)
 
     updateStatisticData(world.practice)
     {
-        if (world.leftGroupNumber == 0 || world.rightGroupNumber == 0) return@updateStatisticData
+        if (!world.leftGroup.isPlayer || !world.rightGroup.isPlayer) return@updateStatisticData
         val group = getPlayerGroup(player.name) ?: return@updateStatisticData
         getFlagTimes[group] = getFlagTimes.getOrDefault(group, 0) + 1
     }
@@ -108,7 +105,7 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
             entity.teleport(world, enemyPrisonStatus)
             updateStatisticData(world.practice)
             {
-                if (world.leftGroupNumber == 0 || world.rightGroupNumber == 0) return@updateStatisticData
+                if (!world.leftGroup.isPlayer || !world.rightGroup.isPlayer) return@updateStatisticData
                 val group = getPlayerGroup(player.name) ?: return@updateStatisticData
                 catchTimes[group] = catchTimes.getOrDefault(group, 0) + 1
             }
@@ -119,7 +116,7 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
             player.teleport(world, selfPrisonStatus)
             updateStatisticData(world.practice)
             {
-                if (world.leftGroupNumber == 0 || world.rightGroupNumber == 0) return@updateStatisticData
+                if (!world.leftGroup.isPlayer || !world.rightGroup.isPlayer) return@updateStatisticData
                 val group = getPlayerGroup(entity.name) ?: return@updateStatisticData
                 catchTimes[group] = catchTimes.getOrDefault(group, 0) + 1
             }

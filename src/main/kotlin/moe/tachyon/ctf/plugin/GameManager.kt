@@ -1,7 +1,7 @@
 package moe.tachyon.ctf.plugin
 
+import moe.tachyon.ctf.plugin.bot.createBots
 import org.bukkit.Bukkit
-import taboolib.common.platform.function.warning
 import taboolib.common.util.randomDouble
 
 const val PLAYER_PREPARE_MESSAGE = "I'm ready!"
@@ -11,20 +11,19 @@ const val GAME_END_MESSAGE = "Game over!"
 
 sealed interface Enemy
 {
-    data object None: Enemy
-    data class Group(val groupId: Int): Enemy
-    data object Default: Enemy
-    data object Random: Enemy
+    data object Any: Enemy
+    data class Specific(val group: Group): Enemy
 }
 
 enum class MapType
 {
     FIXED,
     RANDOM,
-    UNSPECIFIED,
+    ANY,
 }
 
 data class MatchSetting(
+    val group: Int,
     val enemy: Enemy,
     val mapType: MapType,
     val playersPerGroup: Int,
@@ -49,15 +48,21 @@ fun processWaitList() = synchronized(waitList)
     {
         return@sortedBy when (it.second.enemy)
         {
-            is Enemy.None    -> 0
-            is Enemy.Default -> 1
-            is Enemy.Group   -> 2
-            is Enemy.Random  ->
+            is Enemy.Specific  ->
+            {
+                when ((it.second.enemy as Enemy.Specific).group)
+                {
+                    is Group.None        -> 0
+                    is Group.Bot         -> 1
+                    is Group.PlayerGroup -> 2
+                }
+            }
+            is Enemy.Any   ->
             {
                 when (it.second.mapType)
                 {
                     MapType.FIXED, MapType.RANDOM -> 3
-                    MapType.UNSPECIFIED           -> 4
+                    MapType.ANY                   -> 4
                 }
             }
         }
@@ -74,26 +79,26 @@ fun processWaitList() = synchronized(waitList)
             continue
         }
 
-        val group = playerName.split("-").getOrNull(1)?.toIntOrNull() ?: run()
-        {
-            waitList -= playerName
-            list[i] = list[i].copy(third = false)
-            continue
-        }
-
-        val world = tryGetGameWorld(group, setting)
+        val world = tryGetGameWorld(setting)
 
         if (world != null)
         {
-            player.teleport(world, LocationStatus.IN_FIELD)
+            joinGame(playerName, world, Group.PlayerGroup(setting.group))
             waitList -= playerName
             list[i] = list[i].copy(third = false)
             continue
         }
 
-        if (setting.enemy is Enemy.None || setting.enemy is Enemy.Default)
+        if (setting.enemy is Enemy.Specific && (setting.enemy.group.isNone || setting.enemy.group.isBot))
         {
-            makeSelfGame(playerName, group, setting.enemy is Enemy.Default, setting.playersPerGroup, setting.mapType)
+            makeSelfGame(
+                playerName,
+                setting.group,
+                setting.enemy.group,
+                setting.playersPerGroup,
+                setting.mapType
+            )
+
             waitList -= playerName
             list[i] = list[i].copy(third = false)
             continue
@@ -104,11 +109,9 @@ fun processWaitList() = synchronized(waitList)
             val (playerName2, setting2, valid) = list[j]
             if (!valid) continue
 
-            val group2 = playerName2.split("-").getOrNull(1)?.toIntOrNull() ?: continue
-
-            if (isGameSettingMatched(group, setting, group2, setting2))
+            if (isGameSettingMatched(setting, setting2))
             {
-                makeGame(playerName, group, setting, playerName2, group2, setting2)
+                makeGame(playerName, setting, playerName2, setting2)
                 waitList -= playerName
                 waitList -= playerName2
                 list[i] = list[i].copy(third = false)
@@ -119,20 +122,21 @@ fun processWaitList() = synchronized(waitList)
     }
 }
 
-private fun tryGetGameWorld(group: Int, setting: MatchSetting): GameWorld?
+private fun tryGetGameWorld(setting: MatchSetting): GameWorld?
 {
     return getGameWorlds().firstOrNull()
     {
         if (it.playerCountPerGroup != setting.playersPerGroup) return@firstOrNull false
-        if (it.leftGroupNumber != group && it.rightGroupNumber != group) return@firstOrNull false
-        if (setting.mapType != MapType.UNSPECIFIED && it.randomMap != (setting.mapType == MapType.RANDOM)) return@firstOrNull false
-        val enemyMatched = when (setting.enemy)
-        {
-            is Enemy.None    -> it.leftGroupNumber == 0 || it.rightGroupNumber == 0
-            is Enemy.Default -> it.leftGroupNumber == -1 || it.rightGroupNumber == -1
-            is Enemy.Group -> it.leftGroupNumber == setting.enemy.groupId || it.rightGroupNumber == setting.enemy.groupId
-            is Enemy.Random -> true
-        }
+        if (it.leftGroup.id != setting.group && it.rightGroup.id != setting.group) return@firstOrNull false
+        if (setting.mapType != MapType.ANY && it.randomMap != (setting.mapType == MapType.RANDOM)) return@firstOrNull false
+        val enemyMatched =
+            if (setting.enemy is Enemy.Any) true
+            else when ((setting.enemy as Enemy.Specific).group)
+            {
+                is Group.None  -> it.leftGroup.isNone || it.rightGroup.isNone
+                is Group.Bot   -> it.leftGroup.isBot || it.rightGroup.isBot
+                is Group.PlayerGroup -> it.leftGroup.id == setting.enemy.group.id || it.rightGroup.id == setting.enemy.group.id
+            }
         if (!enemyMatched) return@firstOrNull false
         if (it.gameStatus != GameStatus.PREPARING) return@firstOrNull false
 
@@ -140,77 +144,85 @@ private fun tryGetGameWorld(group: Int, setting: MatchSetting): GameWorld?
     }
 }
 
-private fun isGameSettingMatched(g1: Int, setting1: MatchSetting, g2: Int, setting2: MatchSetting): Boolean
+private fun isGameSettingMatched(setting1: MatchSetting, setting2: MatchSetting): Boolean
 {
-    warning("Matching $g1 with $setting1 and $g2 with $setting2")
-    if (g1 == g2) return false
+    if (setting1.group == setting2.group) return false
     if (setting1.playersPerGroup != setting2.playersPerGroup) return false
-    if (setting1.mapType != MapType.UNSPECIFIED && setting2.mapType != MapType.UNSPECIFIED && setting1.mapType != setting2.mapType) return false
-    val enemyMatched1 = when (setting1.enemy)
-    {
-        is Enemy.None    -> false
-        is Enemy.Default -> false
-        is Enemy.Group   -> g2 == setting1.enemy.groupId
-        is Enemy.Random  -> true
-    }
-    val enemyMatched2 = when (setting2.enemy)
-    {
-        is Enemy.None    -> false
-        is Enemy.Default -> false
-        is Enemy.Group   -> g1 == setting2.enemy.groupId
-        is Enemy.Random  -> true
-    }
+    if (setting1.mapType != MapType.ANY && setting2.mapType != MapType.ANY && setting1.mapType != setting2.mapType) return false
+
+    val enemyMatched1 =
+        if (setting1.enemy is Enemy.Any) true
+        else when ((setting1.enemy as Enemy.Specific).group)
+        {
+            is Group.None  -> false
+            is Group.Bot   -> false
+            is Group.PlayerGroup -> setting2.group == setting1.enemy.group.id
+        }
+
+    val enemyMatched2 =
+        if (setting2.enemy is Enemy.Any) true
+        else when ((setting2.enemy as Enemy.Specific).group)
+        {
+            is Group.None  -> false
+            is Group.Bot   -> false
+            is Group.PlayerGroup -> setting1.group == setting2.enemy.group.id
+        }
+
     return enemyMatched1 && enemyMatched2
 }
 
-private fun makeSelfGame(player: String, group: Int, default: Boolean, playerCount: Int, map: MapType)
+private fun makeSelfGame(player: String, group: Int, enemy: Group, playerCount: Int, map: MapType)
 {
-    val p = Bukkit.getPlayer(player) ?: return
+    Bukkit.getPlayer(player) ?: return
     val atLeft = randomDouble() < 0.5
-    val enemy = if (default) -1 else 0
+    val group = Group.PlayerGroup(group)
     val leftGroup = if (atLeft) group else enemy
     val rightGroup = if (atLeft) enemy else group
     val randomMap = when (map)
     {
-        MapType.FIXED       -> false
-        MapType.RANDOM      -> true
-        MapType.UNSPECIFIED -> randomDouble() < 0.5
+        MapType.FIXED  -> false
+        MapType.RANDOM -> true
+        MapType.ANY    -> randomDouble() < 0.5
     }
     val setting = GameSettingData(
-        leftGroupNumber = leftGroup,
-        rightGroupNumber = rightGroup,
+        leftGroup = leftGroup,
+        rightGroup = rightGroup,
         playerCountPerGroup = playerCount,
         randomMap = randomMap,
     )
-    val world = createGame(setting, false)
-    p.teleport(LocationStatus.IN_FIELD.location(world))
+    val world = createGame(setting, !enemy.isNone)
+    joinGame(player, world, group)
+
+    createBots(world)
 }
 
-private fun makeGame(player1: String, group1: Int, setting1: MatchSetting, player2: String, group2: Int, setting2: MatchSetting)
+private fun makeGame(player1: String, setting1: MatchSetting, player2: String, setting2: MatchSetting)
 {
-    val p1 = Bukkit.getPlayer(player1) ?: return
-    val p2 = Bukkit.getPlayer(player2) ?: return
     val atLeft = randomDouble() < 0.5
-    val leftGroup = if (atLeft) group1 else group2
-    val rightGroup = if (atLeft) group2 else group1
+    val leftGroup = if (atLeft) setting1.group else setting2.group
+    val rightGroup = if (atLeft) setting2.group else setting1.group
     val randomMap = when (setting1.mapType)
     {
-        MapType.FIXED       -> false
-        MapType.RANDOM      -> true
-        MapType.UNSPECIFIED -> when (setting2.mapType)
+        MapType.FIXED  -> false
+        MapType.RANDOM -> true
+        MapType.ANY    -> when (setting2.mapType)
         {
-            MapType.FIXED       -> false
-            MapType.RANDOM      -> true
-            MapType.UNSPECIFIED -> randomDouble() < 0.5
+            MapType.FIXED  -> false
+            MapType.RANDOM -> true
+            MapType.ANY    -> randomDouble() < 0.5
         }
     }
     val setting = GameSettingData(
-        leftGroupNumber = leftGroup,
-        rightGroupNumber = rightGroup,
+        leftGroup = Group.PlayerGroup(leftGroup),
+        rightGroup = Group.PlayerGroup(rightGroup),
         playerCountPerGroup = setting1.playersPerGroup,
         randomMap = randomMap,
     )
     val world = createGame(setting, true)
-    p1.teleport(LocationStatus.IN_FIELD.location(world))
-    p2.teleport(LocationStatus.IN_FIELD.location(world))
+
+    joinGame(player1, world, Group.PlayerGroup(setting1.group))
+    joinGame(player2, world, Group.PlayerGroup(setting2.group))
 }
+
+private fun joinGame(player: String, world: GameWorld, asGroup: Group) =
+    world.addPlayer(player, asGroup)

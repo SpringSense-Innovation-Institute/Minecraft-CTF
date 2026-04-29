@@ -35,7 +35,7 @@ private fun onPlayerQuit(event: PlayerQuitEvent)
     }
 }
 
-@SubscribeEvent
+@SubscribeEvent(ignoreCancelled = true)
 private fun onPlayerMove(event: PlayerMoveEvent)
 {
     event.to?.let()
@@ -114,20 +114,20 @@ private fun onBlockPhysics(event: BlockPhysicsEvent)
     GameRecord.addBlock(event.block.location)
 }
 
-@SubscribeEvent
+@SubscribeEvent(ignoreCancelled = true)
 private fun onMenuOpen(event: PlayerSwapHandItemsEvent)
 {
     if (event.player.isSneaking)
         event.player.openMenu()
 }
 
-@SubscribeEvent
+@SubscribeEvent(ignoreCancelled = true)
 private fun onDropItem(event: ItemSpawnEvent)
 {
     event.isCancelled = true
 }
 
-@SubscribeEvent
+@SubscribeEvent(ignoreCancelled = true)
 private fun onPlayerChangeWorld(event: PlayerChangedWorldEvent)
 {
     val from = getGameWorld(event.from.name)
@@ -135,7 +135,7 @@ private fun onPlayerChangeWorld(event: PlayerChangedWorldEvent)
     from?.onPlayerQuit(event.player.name)
     world?.onPlayerJoin(event.player.name)
 
-    if (event.player.world.name == "world")
+    if (event.player.world.name == MAIN_WORLD_NAME)
     {
         event.player.inventory.clear()
         event.player.gameMode = GameMode.CREATIVE
@@ -144,65 +144,65 @@ private fun onPlayerChangeWorld(event: PlayerChangedWorldEvent)
     Bukkit.getPluginManager().callEvent(PlayerMoveEvent(event.player, event.player.location, event.player.location))
 }
 
-private val matchMessageRegex = Regex("with (?<team>(\\d+)|none|random|default) (?<count>\\d+) (?<map>fixed|random|unspecified)")
-@SubscribeEvent
+@SubscribeEvent(ignoreCancelled = true)
 private fun onPlayerMatch(event: AsyncPlayerChatEvent)
 {
-    if (event.player.world.name != "world")
+    if (event.player.world.name != MAIN_WORLD_NAME)
     {
         val gameWorld = getGameWorld(event.player.world.name) ?: return
         if (gameWorld.gameStatus.inGame() || gameWorld.gameStatus.preparing())
             return
     }
-    if (matchMessageRegex.matches(event.message.lowercase()))
+
+    val msg = event.message.lowercase()
+
+    if (!msg.startsWith("match "))
+        return
+
+    event.isCancelled = true
+
+    val illegal = { event.player.sendMessage("§c匹配参数错误！正确格式：match team:<group> enemy:<enemy> players:<count> map:<mapType>") }
+
+    val args = msg.split(" ").filter { ':' in it }.map { it.split(":") }.associate { it[0] to it[1] }
+    val group = args["team"]?.toIntOrNull()?.takeIf { it > 0 } ?: return illegal()
+    val enemyTeam = args["enemy"] ?: return illegal()
+    val count = args["players"]?.toIntOrNull()?.takeIf { it in 0..5 } ?: return illegal()
+    val map = args["map"] ?: return illegal()
+
+    val enemyMode = when (enemyTeam)
     {
-        val matchResult = matchMessageRegex.matchEntire(event.message.lowercase()) ?: return
-        val team = matchResult.groups["team"]?.value ?: return
-        val count = matchResult.groups["count"]?.value?.toIntOrNull() ?: return
-        val map = matchResult.groups["map"]?.value ?: return
-
-        @Suppress("unused")
-        val group = event.player.name.split("-").getOrNull(1)?.toIntOrNull() ?: return
-
-        val enemyMode = when (team)
-        {
-            "none"       -> Enemy.None
-            "random"     -> Enemy.Random
-            "default"    -> Enemy.Default
-            else         -> Enemy.Group(team.toIntOrNull() ?: return)
-        }
-
-        val mapType = when (map)
-        {
-            "fixed"       -> MapType.FIXED
-            "random"      -> MapType.RANDOM
-            "unspecified" -> MapType.UNSPECIFIED
-            else          -> return
-        }
-
-        if (count <= 0) return
-        if (enemyMode is Enemy.Group && enemyMode.groupId == group) return
-        if (enemyMode is Enemy.Group && enemyMode.groupId < 0) return
-
-        val p = practiceMode
-        if (p != null)
-        {
-            if (p.enemy != null && p.enemy != enemyMode) return
-            if (p.playersPerGroup != null && p.playersPerGroup != count) return
-            if (p.mapType != null && p.mapType != mapType) return
-        }
-
-        addToWaitList(
-            playerName = event.player.name,
-            setting = MatchSetting(
-                enemy = enemyMode,
-                playersPerGroup = count,
-                mapType = mapType,
-            )
-        )
-
-        event.isCancelled = true
+        "none"            -> Enemy.Specific(Group.None)
+        "any"             -> Enemy.Any
+        "bot"             -> Enemy.Specific(Group.Bot.DEFAULT)
+        "jump-sprint-bot" -> Enemy.Specific(Group.Bot.JUMP_SPRINT)
+        else              -> Enemy.Specific(Group.PlayerGroup(enemyTeam.toIntOrNull()?.takeIf { it != group && it > 0 } ?: return illegal()))
     }
+
+    val mapType = when (map)
+    {
+        "fixed"       -> MapType.FIXED
+        "random"      -> MapType.RANDOM
+        "any"         -> MapType.ANY
+        else          -> return illegal()
+    }
+
+    val p = practiceMode
+    if (p != null)
+    {
+        if (p.enemy != null && p.enemy != enemyMode) return illegal()
+        if (p.playersPerGroup != null && p.playersPerGroup != count) return illegal()
+        if (p.mapType != null && p.mapType != mapType) return illegal()
+    }
+
+    addToWaitList(
+        playerName = event.player.name,
+        setting = MatchSetting(
+            group = group,
+            enemy = enemyMode,
+            playersPerGroup = count,
+            mapType = mapType,
+        )
+    )
 }
 
 @SubscribeEvent(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -222,21 +222,21 @@ private fun onPlayerChat(event: AsyncPlayerChatEvent)
     }
 }
 
-@SubscribeEvent
+@SubscribeEvent(ignoreCancelled = true)
 private fun onPlayerBreakBlock(event: BlockBreakEvent)
 {
     event.isCancelled = true
 }
 
-@SubscribeEvent
+@SubscribeEvent(ignoreCancelled = true)
 private fun onPlayerPlaceBlock(event: BlockPlaceEvent)
 {
     event.isCancelled = true
 }
 
-@SubscribeEvent
+@SubscribeEvent(ignoreCancelled = true)
 fun onKickSpam(event: PlayerKickEvent)
 {
-    if ("spam" in event.reason || "spam" in event.leaveMessage)
+    if ("spam" in event.reason.lowercase() || "spam" in event.leaveMessage.lowercase())
         event.isCancelled = true
 }
