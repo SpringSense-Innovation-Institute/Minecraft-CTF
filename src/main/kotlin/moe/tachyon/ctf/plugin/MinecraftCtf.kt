@@ -22,8 +22,8 @@ object MinecraftCtfPlugin: Plugin()
     var matchTask: PlatformExecutor.PlatformTask? = null
     var trekTask: PlatformExecutor.PlatformTask? = null
 
-    val server by lazy { HttpServer.create(InetSocketAddress(8964), 0) }
-    val mainWorld = Bukkit.getServer().worlds.first { it.environment == World.Environment.NORMAL }
+    val server: HttpServer by lazy { HttpServer.create(InetSocketAddress(8001), 0) }
+    val mainWorld: World by lazy { Bukkit.getServer().worlds.first { it.environment == World.Environment.NORMAL } }
 
     override fun onEnable()
     {
@@ -37,7 +37,7 @@ object MinecraftCtfPlugin: Plugin()
             val players = onlinePlayers().filter { it.world == mainWorld.name }.map { it.cast<Player>() }
             players.forEach()
             {
-                if (it.inventory.itemInMainHand.getName() == "文明终点：黑曜石")
+                if ("文明终点：黑曜石" in it.inventory.itemInMainHand.getName())
                 {
                     it.inventory.clear()
                     players.forEach()
@@ -95,13 +95,12 @@ enum class GameStatus
 
 sealed interface Group
 {
-    val name: String
+    val displayName: String
         get() = when (this)
         {
-            is PlayerGroup  -> "Group$id"
-            None            -> "none"
-            Bot.DEFAULT     -> "DefaultBot"
-            Bot.JUMP_SPRINT -> "JumpSprintBot"
+            is PlayerGroup   -> "Group$id"
+            None             -> "none"
+            is Bot           -> displayName
         }
 
     val isNone get() = this is None
@@ -112,9 +111,14 @@ sealed interface Group
 
     data class PlayerGroup(override val id: Int): Group
     data object None: Group
-    enum class Bot: Group
+
+    enum class Bot(val selectId: String, override val displayName: String): Group
     {
-        DEFAULT,
-        JUMP_SPRINT,
+        DEFAULT("bot", "Default"),
+        DEFAULT_JUMP("jump-bot", "DefaultJump"),
+        DEFAULT_SNEAK("sneak-bot", "DefaultSneak"),
+        SIMPLE("simple", "Simple"),
+        SIMPLE_JUMP("simple-jump", "SimpleJump"),
+        ;
     }
 }

@@ -174,9 +174,11 @@ private fun onPlayerMatch(event: AsyncPlayerChatEvent)
     {
         "none"            -> Enemy.Specific(Group.None)
         "any"             -> Enemy.Any
-        "bot"             -> Enemy.Specific(Group.Bot.DEFAULT)
-        "jump-sprint-bot" -> Enemy.Specific(Group.Bot.JUMP_SPRINT)
-        else              -> Enemy.Specific(Group.PlayerGroup(enemyTeam.toIntOrNull()?.takeIf { it != group && it > 0 } ?: return illegal()))
+        else              ->
+        {
+            val bot = Group.Bot.entries.firstOrNull { it.selectId == enemyTeam }?.let(Enemy::Specific)
+            bot ?: Enemy.Specific(Group.PlayerGroup(enemyTeam.toIntOrNull()?.takeIf { it != group && it > 0 } ?: return illegal()))
+        }
     }
 
     val mapType = when (map)

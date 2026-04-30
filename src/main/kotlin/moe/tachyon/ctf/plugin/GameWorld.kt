@@ -52,10 +52,10 @@ class GameWorld(
     }
 
     fun getPlayers(): List<String>
-        = bukkitWorld().players.map { it.name }
+        = bukkitWorld()?.players?.map { it.name } ?: emptyList()
     
     fun broadcastMessage(message: String)
-        = bukkitWorld().players.forEach { it.sendMessage(message) }
+        = bukkitWorld()?.players?.forEach { it.sendMessage(message) }
 
     fun getPlayerTeam(player: String): PlayerTeam = when (player)
     {
@@ -66,7 +66,7 @@ class GameWorld(
 
     fun leftGroupPlayers() = leftGroupPlayers.toList()
     fun rightGroupPlayers() = rightGroupPlayers.toList()
-    fun bukkitWorld() = Bukkit.getWorld(name)!!
+    fun bukkitWorld(): World? = Bukkit.getWorld(name)
 
     fun updateTeam()
     {
@@ -85,7 +85,7 @@ class GameWorld(
     fun prepareGame(timeout: Boolean = true)
     {
         gameStatus = GameStatus.PREPARING
-        broadcastMessage("&6${leftGroup.name} VS ${rightGroup.name} 的对决即将开始，请做好准备!".colored())
+        broadcastMessage("&6${leftGroup.displayName} VS ${rightGroup.displayName} 的对决即将开始，请做好准备!".colored())
 
         preparedPlayers.clear()
         if (timeout) submit(delay = 600)
@@ -221,7 +221,7 @@ class GameWorld(
             {
                 resetGameMap()
                 record.start()
-                bukkitWorld().difficulty = Difficulty.HARD
+                bukkitWorld()?.difficulty = Difficulty.HARD
                 getPlayers().forEach()
                 {
                     val player = Bukkit.getPlayer(it) ?: return@forEach
@@ -259,9 +259,9 @@ class GameWorld(
                         player.gameMode = GameMode.CREATIVE
                     }
 
-                    player.sendTitle("&6${leftGroup.name} VS ${rightGroup.name} 开始了!".colored(), "", 10, 70, 20)
+                    player.sendTitle("&6${leftGroup.displayName} VS ${rightGroup.displayName} 开始了!".colored(), "", 10, 70, 20)
                 }
-                bukkitWorld().setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true)
+                bukkitWorld()?.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true)
 
                 updateStatisticData(practice)
                 {
@@ -348,9 +348,9 @@ class GameWorld(
         {
             val player = Bukkit.getPlayer(it) ?: return@forEach
             if (winner == PlayerTeam.NONE)
-                player.sendTitle("&6${leftGroup.name} 与 ${rightGroup.name} 平局!".colored(), "", 10, 70, 20)
+                player.sendTitle("&6${leftGroup.displayName} 与 ${rightGroup.displayName} 平局!".colored(), "", 10, 70, 20)
             else
-                player.sendTitle("&6${if (winner == PlayerTeam.LEFT) leftGroup.name else rightGroup.name} 获胜!".colored(), "", 10, 70, 20)
+                player.sendTitle("&6${if (winner == PlayerTeam.LEFT) leftGroup.displayName else rightGroup.displayName} 获胜!".colored(), "", 10, 70, 20)
 
             player.inventory.clear()
         }

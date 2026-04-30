@@ -71,7 +71,8 @@ class GameRecord(
                 return@submit
             }
 
-            val entities = world.bukkitWorld().getNearbyEntities(box)
+            val bukkitWorld = world.bukkitWorld() ?: return@submit
+            val entities = bukkitWorld.getNearbyEntities(box)
             output.writeShort((entities.map { it.uniqueId } + entityPool.keys).distinct().size)
             for (entity in entities)
             {
@@ -173,7 +174,7 @@ class GameRecord(
                 for (x in s.blockX..e.blockX)
                     for (y in s.blockY..e.blockY)
                         for (z in s.blockZ..e.blockZ)
-                            if (world.bukkitWorld().getBlockAt(x, y, z).blockData.material != Material.AIR)
+                            if (bukkitWorld.getBlockAt(x, y, z).blockData.material != Material.AIR)
                                 blocks += Location(world.bukkitWorld(), x.toDouble(), y.toDouble(), z.toDouble())
             }
 
@@ -213,14 +214,16 @@ class GameRecord(
         {
             if (init)
             {
-                world.bukkitWorld().difficulty = Difficulty.HARD
+                world.bukkitWorld()?.difficulty = Difficulty.HARD
                 init = false
                 for (x in mapBox.min.blockX..mapBox.max.blockX)
                     for (y in mapBox.min.blockY..mapBox.max.blockY)
                         for (z in mapBox.min.blockZ..mapBox.max.blockZ)
-                            world.bukkitWorld().getBlockAt(x, y, z).blockData = Bukkit.createBlockData(Material.AIR)
-                world.bukkitWorld().getNearbyEntities(box).forEach { runCatching { it.remove() } } // player会remove失败，忽略它
+                            world.bukkitWorld()?.getBlockAt(x, y, z)?.blockData = Bukkit.createBlockData(Material.AIR)
+                world.bukkitWorld()?.getNearbyEntities(box)?.forEach { runCatching { it.remove() } } // player会remove失败，忽略它
             }
+
+            val bukkitWorld = world.bukkitWorld() ?: return@submit
 
             if (input.available() == 0)
             {
@@ -250,7 +253,7 @@ class GameRecord(
                         EntityType.PLAYER ->
                         {
                             val name = input.readUTF()
-                            val player = world.bukkitWorld().spawnEntity(Location(world.bukkitWorld(), 0.0, -64.0, 0.0), EntityType.CREEPER) as Creeper
+                            val player = bukkitWorld.spawnEntity(Location(world.bukkitWorld(), 0.0, -64.0, 0.0), EntityType.CREEPER) as Creeper
                             player.customName = name
                             player.isCustomNameVisible = true
                             player
@@ -263,11 +266,11 @@ class GameRecord(
                             val itemStack = ItemStack(material, amount)
                             val itemTagJson = input.readUTF()
                             itemStack.setItemTag(ItemTag.fromJson(itemTagJson))
-                            val item = world.bukkitWorld().dropItem(Location(world.bukkitWorld(), 0.0, -64.0, 0.0), itemStack)
+                            val item = bukkitWorld.dropItem(Location(bukkitWorld, 0.0, -64.0, 0.0), itemStack)
                             item
                         }
 
-                        else -> world.bukkitWorld().spawnEntity(Location(world.bukkitWorld(), 0.0, -64.0, 0.0), type)
+                        else -> bukkitWorld.spawnEntity(Location(bukkitWorld, 0.0, -64.0, 0.0), type)
                     }
                     if (entity is LivingEntity)
                     {
@@ -301,7 +304,7 @@ class GameRecord(
                 val y = input.readByte().toInt()
                 val z = input.readByte().toInt()
                 val blockData = input.readUTF()
-                world.bukkitWorld().getBlockAt(x, y, z).blockData = Bukkit.createBlockData(blockData)
+                bukkitWorld.getBlockAt(x, y, z).blockData = Bukkit.createBlockData(blockData)
             }
         }
     }

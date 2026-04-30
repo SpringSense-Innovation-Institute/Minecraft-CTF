@@ -11,6 +11,7 @@ import org.bukkit.World
 import org.bukkit.entity.Entity
 import org.bukkit.entity.HumanEntity
 import org.bukkit.entity.Player
+import org.bukkit.util.Vector
 import taboolib.common.platform.function.submit
 import taboolib.common.util.random
 import taboolib.common.util.randomDouble
@@ -19,7 +20,10 @@ import taboolib.platform.util.title
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.random.Random
+import kotlin.random.nextULong
 
 enum class LocationStatus
 {
@@ -124,7 +128,7 @@ data class GameSettingData(
     var randomMap: Boolean = true,
 )
 
-private fun randomId() = Random.nextLong().toString(36).take(4).padStart(4, '0')
+private fun randomId() = Random.nextULong().toString(36).take(4).padStart(4, '0')
 
 fun HumanEntity.replayRecord(file: File)
 {
@@ -162,9 +166,9 @@ fun createGame(data: GameSettingData, timeout: Boolean): GameWorld
     val date = Date()
     val format = SimpleDateFormat("yy-MM-dd_HH-mm-ss")
     val prefix = practiceMode?.name?.plus("_") ?: ""
-    val record = GameRecord.file({ world!! }, "${prefix}${format.format(date)}_${data.leftGroup.name}-vs-${data.rightGroup.name}_${randomId()}")
+    val record = GameRecord.file({ world!! }, "${prefix}${format.format(date)}_${data.leftGroup.displayName}-vs-${data.rightGroup.displayName}_${randomId()}")
     world = generateGameWorld(
-        "game-${data.leftGroup.name}-vs-${data.rightGroup.name}-${randomId()}",
+        "game-${data.leftGroup.displayName}-vs-${data.rightGroup.displayName}-${randomId()}",
         data,
         record,
     )
@@ -174,7 +178,13 @@ fun createGame(data: GameSettingData, timeout: Boolean): GameWorld
 
 fun HumanEntity.teleportToWorld(world: World = mainWorld)
 {
-    teleport(Location(world, 0.5, 1.0, 0.5))
+    val sita = random(-Math.PI, Math.PI)
+    val r = 5
+    val x = r * cos(sita) + 0.5
+    val z = r * sin(sita) + 0.5
+    val loc = Location(world, x, 1.0, z)
+    loc.direction = Vector(-x, 0.0, -z)
+    teleport(loc)
 }
 
 fun getPlayerGroup(player: String): Int? =
@@ -195,9 +205,20 @@ data class StatisticData(
 )
 
 private val statisticFileLock = Any()
-private fun getStatisticData(filename: String): StatisticData = synchronized(statisticFileLock)
+
+private fun getStatisticFile(name: String?) =  BukkitPlugin.getInstance().dataFolder.resolve("statistics/${name ?: "main"}.dat")
+private fun getStatisticFiles() =
+    BukkitPlugin.getInstance()
+        .dataFolder
+        .resolve("statistics")
+        .listFiles()
+        ?.filter { it.isFile && it.name.endsWith(".dat") }
+        ?.map { it.nameWithoutExtension }
+        ?: emptyList()
+
+private fun getStatisticData(name: String?): StatisticData = synchronized(statisticFileLock)
 {
-    val file = BukkitPlugin.getInstance().dataFolder.resolve("$filename.dat")
+    val file = getStatisticFile(name)
     if (!file.exists()) return StatisticData()
     return@synchronized runCatching()
     {
@@ -208,9 +229,9 @@ private fun getStatisticData(filename: String): StatisticData = synchronized(sta
     }
 }
 
-private fun saveStatisticData(filename: String, data: StatisticData) = synchronized(statisticFileLock)
+private fun saveStatisticData(name: String?, data: StatisticData) = synchronized(statisticFileLock)
 {
-    val file = BukkitPlugin.getInstance().dataFolder.resolve("$filename.dat")
+    val file = getStatisticFile(name)
     if (!file.parentFile.exists()) file.parentFile.mkdirs()
     file.writeText(Json.encodeToString(data))
 }
@@ -220,24 +241,39 @@ fun updateStatisticData(
     block: StatisticData.() -> Unit
 ) = synchronized(statisticFileLock)
 {
-    val data = getStatisticData(name ?: "statistics")
+    val data = getStatisticData(name)
     data.block()
-    saveStatisticData(name ?: "statistics", data)
+    saveStatisticData(name, data)
 }
 
 fun setupServer()
 {
     server.createContext("/statistics")
     { exchange ->
-        val statistic = getStatisticData(practiceMode?.name ?: "statistics")
+        val args =
+            exchange.requestURI.query
+                ?.split("&")
+                ?.map { it.split("=") }
+                ?.filter { it.size == 2 }
+                ?.associate { it[0] to it[1] } ?: emptyMap()
 
-        val r = Json.encodeToString(statistic)
-
-        exchange.sendResponseHeaders(200, r.toByteArray().size.toLong())
+        val statistic = getStatisticData(args["name"] ?: practiceMode?.name)
+        val r = Json.encodeToString(statistic).toByteArray()
+        exchange.sendResponseHeaders(200, r.size.toLong())
         exchange.responseHeaders.add("Content-Type", "application/json")
-
         val os = exchange.responseBody
-        os.write(r.toByteArray())
+        os.write(r)
+        os.close()
+    }
+
+    server.createContext("/list")
+    { exchange ->
+        val list = getStatisticFiles()
+        val r = Json.encodeToString(list).toByteArray()
+        exchange.sendResponseHeaders(200, r.size.toLong())
+        exchange.responseHeaders.add("Content-Type", "application/json")
+        val os = exchange.responseBody
+        os.write(r)
         os.close()
     }
 

@@ -2,7 +2,6 @@ package moe.tachyon.ctf.plugin
 
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.mainWorld
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.recordsFolder
-import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.HumanEntity
@@ -161,8 +160,8 @@ private fun HumanEntity.chooseWorldMenu(): Unit = openMenu<PageableChest<GameWor
                 GameStatus.IN_GAME -> "对局进行中"
                 GameStatus.NONE -> "等待被回收"
             }}"
-            lore += "红队: ${element.leftGroup.name}"
-            lore += "蓝队: ${element.rightGroup.name}"
+            lore += "红队: ${element.leftGroup.displayName}"
+            lore += "蓝队: ${element.rightGroup.displayName}"
         }
     }
 
@@ -229,12 +228,12 @@ private fun HumanEntity.openPlayerGroupingMenu()
         set('A', buildItem(Material.RED_WOOL)
         {
             name = "红队"
-            lore += "当前组号: ${data.leftGroup}"
+            lore += "当前组号: ${data.leftGroup.displayName}"
         }) { clicker.openGroupInputMenu(PlayerTeam.LEFT) }
         set('B', buildItem(Material.BLUE_WOOL)
         {
             name = "蓝队"
-            lore += "当前组号: ${data.rightGroup}"
+            lore += "当前组号: ${data.rightGroup.displayName}"
         }) { clicker.openGroupInputMenu(PlayerTeam.RIGHT) }
         set('C', buildItem(Material.OMINOUS_TRIAL_KEY)
         {
@@ -279,7 +278,7 @@ context(data: GameSettingData)
 private fun HumanEntity.openGroupInputMenu(team: PlayerTeam): Unit = openMenu<Anvil>()
 {
     title = if (team == PlayerTeam.LEFT) "输入红队组号" else "输入蓝队组号"
-    set(0, buildItem(Material.PAPER) { name = if (team == PlayerTeam.LEFT) "${data.leftGroup}" else "${data.rightGroup}" })
+    set(0, buildItem(Material.PAPER) { name = if (team == PlayerTeam.LEFT) "${data.leftGroup.id}" else "${data.rightGroup.id}" })
 
     onRename()
     { player, text, inventory ->
@@ -502,7 +501,7 @@ private fun HumanEntity.openPracticeSettingMenu(): Unit = openMenu<Chest>()
         name = "匹配设置"
         lore += "当前设置: " + when (data.enemy)
         {
-            is Enemy.Specific  -> data.enemy.group.name
+            is Enemy.Specific  -> data.enemy.group.displayName
             Enemy.Any  -> "随机敌人"
             null       -> "未指定"
         }
@@ -536,7 +535,7 @@ private fun HumanEntity.openPracticeSettingMenu(): Unit = openMenu<Chest>()
             lore += "名字：${p.name}"
             lore += "匹配模式：" + when (p.enemy)
             {
-                is Enemy.Specific -> p.enemy.group.name
+                is Enemy.Specific -> p.enemy.group.displayName
                 Enemy.Any  -> "随机敌人"
                 null       -> "未指定"
             }

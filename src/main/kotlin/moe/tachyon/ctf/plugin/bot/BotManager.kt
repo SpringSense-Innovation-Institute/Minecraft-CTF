@@ -2,6 +2,7 @@ package moe.tachyon.ctf.plugin.bot
 
 import moe.tachyon.ctf.plugin.GameWorld
 import moe.tachyon.ctf.plugin.Group
+import moe.tachyon.ctf.plugin.Group.Bot.*
 
 fun createBots(
     world: GameWorld,
@@ -15,8 +16,11 @@ fun createBots(
     {
         when (group)
         {
-            Group.Bot.DEFAULT -> DefaultBot(world)
-            Group.Bot.JUMP_SPRINT -> JumpSpringBot(world)
+            DEFAULT       -> DefaultBot(world)
+            DEFAULT_JUMP  -> JumpBot(world)
+            DEFAULT_SNEAK -> SneakBot(world)
+            SIMPLE        -> SimpleBot(world)
+            SIMPLE_JUMP   -> JumpSimpleBot(world)
         }
     }
 

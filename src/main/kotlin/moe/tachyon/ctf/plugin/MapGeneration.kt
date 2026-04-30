@@ -41,7 +41,7 @@ fun GameWorld.clearMap()
         }
 
     val box = BoundingBox(-24.0, -64.0, -36.0, 24.0, 20.0, 36.0)
-    bukkitWorld().getNearbyEntities(box).forEach()
+    bukkitWorld()?.getNearbyEntities(box)?.forEach()
     {
         if (it.type != EntityType.PLAYER)
             it.remove()

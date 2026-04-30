@@ -46,7 +46,7 @@ fun processWaitList() = synchronized(waitList)
 {
     val list = waitList.toList().sortedBy()
     {
-        return@sortedBy when (it.second.enemy)
+        when (it.second.enemy)
         {
             is Enemy.Specific  ->
             {
@@ -193,7 +193,7 @@ private fun makeSelfGame(player: String, group: Int, enemy: Group, playerCount: 
     val world = createGame(setting, !enemy.isNone)
     joinGame(player, world, group)
 
-    createBots(world)
+    if (enemy.isBot) createBots(world)
 }
 
 private fun makeGame(player1: String, setting1: MatchSetting, player2: String, setting2: MatchSetting)

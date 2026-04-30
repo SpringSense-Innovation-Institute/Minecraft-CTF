@@ -9,7 +9,7 @@ import org.bukkit.entity.Player
 import taboolib.common.platform.function.submit
 import taboolib.common.platform.function.warning
 import kotlin.random.Random
-import kotlin.random.nextUInt
+import kotlin.random.nextULong
 
 abstract class Bot(
     val world: GameWorld
@@ -17,12 +17,13 @@ abstract class Bot(
 {
     companion object
     {
-        fun randomBotName() = "CTF-Bot-" + Random.nextUInt().toString(16).padStart(8, '0')
+        fun randomBotName() = "CTF-Bot-" + Random.nextULong().toString(36).take(4).padStart(4, '0')
     }
 
     val name: String = randomBotName()
 
     private var init = true
+    private var tickCount = 0
     protected var player: Player? = null
         private set
 
@@ -30,10 +31,12 @@ abstract class Bot(
     {
         submit(period = 1)
         {
+            tickCount++
             if (init)
             {
                 init = false
-                player = BotNMSHandler.instance.spawnFakePlayer(world.bukkitWorld(), name, LocationStatus.IN_CENTER.location(world))
+                val bukkitWorld = world.bukkitWorld() ?: return@submit
+                player = BotNMSHandler.instance.spawnFakePlayer(bukkitWorld, name, LocationStatus.IN_CENTER.location(world))
                 player?.teleport(world, LocationStatus.IN_CENTER)
                 world.addPlayer(name, if (world.leftGroup.isBot) world.leftGroup else world.rightGroup)
                 return@submit
@@ -81,8 +84,15 @@ abstract class Bot(
         }
     }
 
-    protected fun getMap(): List<List<MapElement>>
+    private val updateInterval = 5
+    private var buf = listOf<List<MapElement>>()
+    private var bufTick = - updateInterval - 1
+
+    protected open fun getMap(): List<List<MapElement>>
     {
+        if (tickCount - bufTick <= updateInterval)
+            return buf
+
         val map = (-24..24).map()
         { x ->
             (-36..36).map()
@@ -90,6 +100,8 @@ abstract class Bot(
                 getElement(x, z)
             }
         }
+        buf = map
+        bufTick = tickCount
         return map
     }
 
