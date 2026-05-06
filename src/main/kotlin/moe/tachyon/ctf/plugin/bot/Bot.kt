@@ -15,7 +15,7 @@ abstract class Bot(
 {
     companion object
     {
-        fun randomBotName() = "CTF-Bot-" + Random.nextULong().toString(36).take(4).padStart(4, '0')
+        fun randomBotName() = "CTF-Bot-" + Random.nextULong().toString(36).takeLast(4).padStart(4, '0')
     }
 
     val name: String = randomBotName()
