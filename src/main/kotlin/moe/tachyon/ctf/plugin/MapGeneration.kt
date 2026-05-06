@@ -201,26 +201,33 @@ private class CowAI(
     override fun updateTask()
     {
         val target = world.getPlayers()
+            .asSequence()
             .filter { world.getPlayerTeam(it) != PlayerTeam.NONE }
             .mapNotNull { Bukkit.getPlayer(it) }
-            .minByOrNull { it.location.distanceSquared(cow.location) } ?: return
+            .map { it to it.location }
+            .filter { it.second.world == cow.world }
+            .minByOrNull { it.second.distanceSquared(cow.location) } ?: return
 
-        if (!sprinting && target.location.distanceSquared(cow.location) < 16.0 && !cooldown)
+        if (target.first.world != cow.world) return
+
+        if (!sprinting && target.second.distanceSquared(cow.location) < 16.0 && !cooldown)
         {
             sprinting = true
         }
-        else if (target.location.distanceSquared(cow.location) >= 25.0)
+        else if (target.second.distanceSquared(cow.location) >= 25.0)
         {
             sprinting = false
             cooldown = false
         }
 
-        if (sprinting) cow.navigationMove(target, 3.0)
-        else cow.navigationMove(target, 1.0)
+        if (target.first.world != cow.world) return
 
-        if (target.location.distanceSquared(cow.location) < 1.0 && !cooldown)
+        if (sprinting) cow.navigationMove(target.first, 3.0)
+        else cow.navigationMove(target.first, 1.0)
+
+        if (target.second.distanceSquared(cow.location) < 1.0 && !cooldown)
         {
-            val d = Vector(target.location.x - cow.location.x, 0.0, target.location.z - cow.location.z).normalize().multiply(0.8)
+            val d = Vector(target.second.x - cow.location.x, 0.0, target.second.z - cow.location.z).normalize().multiply(0.8)
             cow.velocity = d
             cooldown = true
             sprinting = false

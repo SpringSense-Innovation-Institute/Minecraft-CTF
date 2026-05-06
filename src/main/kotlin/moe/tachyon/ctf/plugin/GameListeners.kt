@@ -5,6 +5,7 @@ import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.FoodLevelChangeEvent
+import org.bukkit.event.inventory.InventoryCreativeEvent
 import org.bukkit.event.player.AsyncPlayerChatEvent
 import org.bukkit.event.player.PlayerItemDamageEvent
 import org.bukkit.event.player.PlayerMoveEvent
@@ -208,8 +209,15 @@ private fun onEntityDamageEntity(event: EntityDamageByEntityEvent)
     {
         val world = getGameWorld(event.damager.world.name) ?: return
         if (world.getPlayerTeam(event.damager.name) == PlayerTeam.NONE)
-        {
             event.isCancelled = true
-        }
     }
+}
+
+@SubscribeEvent
+fun onCreativeClick(e: InventoryCreativeEvent)
+{
+    val player = e.whoClicked as? Player ?: return
+    val world = getGameWorld(player.world.name) ?: return
+    val team = world.getPlayerTeam(player.name)
+    if (team == PlayerTeam.NONE) e.isCancelled = true
 }
