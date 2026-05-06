@@ -2,6 +2,7 @@ package moe.tachyon.ctf.plugin
 
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.mainWorld
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.recordsFolder
+import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.HumanEntity
@@ -78,8 +79,16 @@ private fun HumanEntity.openWorldMenu()
             set('B', buildItem(Material.RED_WOOL)
             {
                 name = "游戏准备中"
+                lore += "点击清空该世界，取消游戏"
                 lore += "若所有玩家离开，游戏将被自动取消"
-            }) { }
+            })
+            {
+                world.getPlayers().mapNotNull(Bukkit::getPlayer).forEach()
+                {
+                    it.teleportToWorld()
+                    it.sendMessage("&c游戏已被管理员取消，已被传送回主世界".colored())
+                }
+            }
         }
         else if (world.gameStatus.inGame())
         {
@@ -192,8 +201,8 @@ private fun HumanEntity.openGameSettingsMenu(): Unit = openMenu<Chest>()
     set('A', buildItem(Material.PLAYER_HEAD)
     {
         name = "玩家分组"
-        lore += "&c当前红队组号: ${data.leftGroup}".colored()
-        lore += "&9当前蓝队组号: ${data.rightGroup}".colored()
+        lore += "&c当前红队组号: ${data.leftGroup.displayName}".colored()
+        lore += "&9当前蓝队组号: ${data.rightGroup.displayName}".colored()
         lore += "每组玩家人数: ${data.playerCountPerGroup}".colored()
     }) { clicker.openPlayerGroupingMenu() }
     set('B', buildItem(Material.MAP) { name = "地图设置" }) { clicker.openMapSettingsMenu() }
