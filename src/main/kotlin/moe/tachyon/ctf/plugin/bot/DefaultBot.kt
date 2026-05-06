@@ -1,6 +1,7 @@
 package moe.tachyon.ctf.plugin.bot
 
 import moe.tachyon.ctf.plugin.GameWorld
+import moe.tachyon.ctf.plugin.GameWorld.MapElement
 import moe.tachyon.ctf.plugin.isBanner
 import org.bukkit.Bukkit
 import org.bukkit.Location

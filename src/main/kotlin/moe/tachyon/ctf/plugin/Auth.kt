@@ -2,20 +2,13 @@
 
 package moe.tachyon.ctf.plugin.auth
 
-import moe.tachyon.ctf.plugin.openMenu
 import org.bukkit.entity.Player
 import org.bukkit.event.Cancellable
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.EntityPickupItemEvent
 import org.bukkit.event.inventory.InventoryOpenEvent
-import org.bukkit.event.player.AsyncPlayerChatEvent
-import org.bukkit.event.player.PlayerCommandPreprocessEvent
-import org.bukkit.event.player.PlayerDropItemEvent
-import org.bukkit.event.player.PlayerInteractEvent
-import org.bukkit.event.player.PlayerJoinEvent
-import org.bukkit.event.player.PlayerMoveEvent
-import org.bukkit.event.player.PlayerTeleportEvent
+import org.bukkit.event.player.*
 import taboolib.common.LifeCycle
 import taboolib.common.platform.Awake
 import taboolib.common.platform.ProxyPlayer
@@ -24,7 +17,7 @@ import taboolib.common.platform.command.simpleCommand
 import taboolib.common.platform.event.EventPriority
 import taboolib.common.platform.event.SubscribeEvent
 import taboolib.platform.BukkitPlugin
-import java.util.Collections
+import java.util.*
 
 private val blockedUsers = Collections.synchronizedSet(mutableSetOf<String>())
 

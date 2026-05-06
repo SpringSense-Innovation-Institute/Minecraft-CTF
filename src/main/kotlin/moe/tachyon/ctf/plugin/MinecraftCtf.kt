@@ -1,6 +1,7 @@
 package moe.tachyon.ctf.plugin
 
 import com.sun.net.httpserver.HttpServer
+import moe.tachyon.ctf.plugin.web.setupServer
 import org.bukkit.Bukkit
 import org.bukkit.World
 import org.bukkit.entity.Player
@@ -98,7 +99,7 @@ sealed interface Group
     val displayName: String
         get() = when (this)
         {
-            is PlayerGroup   -> "Group$id"
+            is PlayerGroup   -> "Group${id}"
             None             -> "none"
             is Bot           -> displayName
         }

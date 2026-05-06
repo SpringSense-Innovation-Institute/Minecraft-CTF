@@ -83,5 +83,9 @@ fun removeGameWorld(name: String)
 fun checkGameWorldRecycle(name: String)
 {
     val world = getGameWorld(name) ?: return
-    if (world.canRecycle()) removeGameWorld(name)
+    if (world.canRecycle())
+    {
+        world.gameStatus = GameStatus.NONE
+        removeGameWorld(name)
+    }
 }

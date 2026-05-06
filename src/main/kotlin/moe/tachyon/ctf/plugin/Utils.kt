@@ -3,7 +3,6 @@ package moe.tachyon.ctf.plugin
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.mainWorld
-import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.server
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
@@ -42,8 +41,8 @@ enum class LocationStatus
     {
         IN_LEFT_FIELD, IN_LEFT_BASE -> Location(world.bukkitWorld(), -21.5, 1.0, 0.5)
         IN_RIGHT_FIELD, IN_RIGHT_BASE -> Location(world.bukkitWorld(), 22.5, 1.0, 0.5)
-        IN_LEFT_PRISON -> Location(world.bukkitWorld(), -15.5, 1.0, 28.5)
-        IN_RIGHT_PRISON -> Location(world.bukkitWorld(), 16.5, 1.0, 28.5)
+        IN_LEFT_PRISON -> Location(world.bukkitWorld(), -15.5, 1.0, 28.5) // -16 1 28
+        IN_RIGHT_PRISON -> Location(world.bukkitWorld(), 16.5, 1.0, 28.5) // 16 1 28
         IN_CENTER -> Location(world.bukkitWorld(), 0.5, 1.0, 0.5)
         IN_FIELD -> Location(world.bukkitWorld(), 0.5, 1.0, 0.5)
         OUT_OF_FIELD ->
@@ -207,7 +206,7 @@ data class StatisticData(
 private val statisticFileLock = Any()
 
 private fun getStatisticFile(name: String?) =  BukkitPlugin.getInstance().dataFolder.resolve("statistics/${name ?: "main"}.dat")
-private fun getStatisticFiles() =
+fun getStatisticFiles() =
     BukkitPlugin.getInstance()
         .dataFolder
         .resolve("statistics")
@@ -216,7 +215,7 @@ private fun getStatisticFiles() =
         ?.map { it.nameWithoutExtension }
         ?: emptyList()
 
-private fun getStatisticData(name: String?): StatisticData = synchronized(statisticFileLock)
+fun getStatisticData(name: String?): StatisticData = synchronized(statisticFileLock)
 {
     val file = getStatisticFile(name)
     if (!file.exists()) return StatisticData()
@@ -244,39 +243,4 @@ fun updateStatisticData(
     val data = getStatisticData(name)
     data.block()
     saveStatisticData(name, data)
-}
-
-fun setupServer()
-{
-    server.createContext("/statistics")
-    { exchange ->
-        val args =
-            exchange.requestURI.query
-                ?.split("&")
-                ?.map { it.split("=") }
-                ?.filter { it.size == 2 }
-                ?.associate { it[0] to it[1] } ?: emptyMap()
-
-        val statistic = getStatisticData(args["name"] ?: practiceMode?.name)
-        val r = Json.encodeToString(statistic).toByteArray()
-        exchange.sendResponseHeaders(200, r.size.toLong())
-        exchange.responseHeaders.add("Content-Type", "application/json")
-        val os = exchange.responseBody
-        os.write(r)
-        os.close()
-    }
-
-    server.createContext("/list")
-    { exchange ->
-        val list = getStatisticFiles()
-        val r = Json.encodeToString(list).toByteArray()
-        exchange.sendResponseHeaders(200, r.size.toLong())
-        exchange.responseHeaders.add("Content-Type", "application/json")
-        val os = exchange.responseBody
-        os.write(r)
-        os.close()
-    }
-
-    server.executor = null
-    server.start()
 }

@@ -22,10 +22,6 @@ plugins {
     kotlin("plugin.serialization") version "2.3.20"
 }
 
-application {
-    mainClass.set("moe.tachyon.ctf.server.MainKt")
-}
-
 taboolib {
     env {
         install(Basic)
@@ -49,20 +45,11 @@ taboolib {
         }
     }
     version { taboolib = "6.2.4-6b473c4" }
-    relocate("top.maplex.arim", "moe.tachyon.ctf.arim")
     relocate("kotlinx.serialization", "moe.tachyon.ctf.kotlinx.serialization")
 }
 
 repositories {
     mavenCentral()
-//    maven {
-//        url = uri("https://nexus.maplex.top/repository/maven-public/")
-//        isAllowInsecureProtocol = true
-//    }
-//    maven {
-//        name = "papermc"
-//        url = uri("https://repo.papermc.io/repository/maven-public/")
-//    }
 }
 
 dependencies {
@@ -90,12 +77,6 @@ tasks.withType<KotlinCompile> {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
         freeCompilerArgs.add("-Xjvm-default=all")
-    }
-}
-
-tasks.jar {
-    manifest {
-        attributes["Main-Class"] = "moe.tachyon.ctf.server.MainKt"
     }
 }
 
