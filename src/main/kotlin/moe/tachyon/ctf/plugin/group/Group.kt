@@ -103,3 +103,9 @@ private fun onPlayerJoin(event: PlayerJoinEvent)
     team.addEntry(player.name)
     team.prefix = "&6[${group.name}] ".colored()
 }
+
+fun getPlayerGroup(playerName: String): GroupInfo?
+{
+    val groups = getGroups()
+    return groups.firstOrNull { it.players.any { p -> p.id == playerName } }
+}

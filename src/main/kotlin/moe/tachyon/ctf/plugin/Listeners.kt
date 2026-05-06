@@ -1,6 +1,7 @@
 package moe.tachyon.ctf.plugin
 
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.mainWorld
+import moe.tachyon.ctf.plugin.group.getPlayerGroup
 import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.Location
@@ -162,10 +163,10 @@ private fun onPlayerMatch(event: AsyncPlayerChatEvent)
 
     event.isCancelled = true
 
-    val illegal = { event.player.sendMessage("§c匹配参数错误！正确格式：match team:<group> enemy:<enemy> players:<count> map:<mapType>") }
+    val illegal = { event.player.sendMessage("§c匹配参数错误！正确格式：match enemy:<enemy> players:<count> map:<mapType>") }
 
     val args = msg.split(" ").filter { ':' in it }.map { it.split(":") }.associate { it[0] to it[1] }
-    val group = args["team"]?.toIntOrNull()?.takeIf { it > 0 } ?: return illegal()
+    val group = getPlayerGroup(event.player.name)?.id ?: return event.player.sendMessage("§c你没有加入任何队伍，无法匹配！")
     val enemyTeam = args["enemy"] ?: return illegal()
     val count = args["players"]?.toIntOrNull()?.takeIf { it in 0..5 } ?: return illegal()
     val map = args["map"] ?: return illegal()
