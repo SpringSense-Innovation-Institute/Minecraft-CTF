@@ -22,6 +22,8 @@ private fun onPlayerJoin(event: PlayerJoinEvent)
 {
     event.player.inventory.clear()
     event.player.gameMode = GameMode.CREATIVE
+    event.player.walkSpeed = 0.2f
+    event.player.activePotionEffects.forEach { event.player.removePotionEffect(it.type) }
     event.player.teleportToWorld()
 }
 

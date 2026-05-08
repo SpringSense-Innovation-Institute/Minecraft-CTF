@@ -1,7 +1,10 @@
 package moe.tachyon.ctf.plugin
 
+import org.bukkit.Bukkit
+import org.bukkit.Color
 import org.bukkit.Location
 import org.bukkit.Material
+import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Player
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.FoodLevelChangeEvent
@@ -10,10 +13,19 @@ import org.bukkit.event.player.AsyncPlayerChatEvent
 import org.bukkit.event.player.PlayerItemDamageEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerRespawnEvent
+import org.bukkit.potion.PotionEffect
+import org.bukkit.potion.PotionEffectType
+import org.bukkit.util.Vector
+import taboolib.common.platform.event.EventPriority
 import taboolib.common.platform.event.SubscribeEvent
+import taboolib.common.platform.function.submit
+import taboolib.common.util.random
 import taboolib.platform.util.buildItem
+import taboolib.platform.util.isAir
+import kotlin.math.cos
+import kotlin.math.sin
 
-@SubscribeEvent
+@SubscribeEvent(ignoreCancelled = true, priority = EventPriority.MONITOR)
 private fun onPlayerPickupFlag(event: PlayerMoveEvent)
 {
     val world = getGameWorld(event.player.world.name) ?: return
@@ -21,7 +33,7 @@ private fun onPlayerPickupFlag(event: PlayerMoveEvent)
     val player = event.player
     val team = world.getPlayerTeam(player.name)
     if (team == PlayerTeam.NONE) return
-    if (player.inventory.helmet?.type.isBanner()) return
+    if (!player.inventory.helmet?.type.isAir()) return
     val location = (event.to ?: return).clone().apply { y = 0.0 }
 
     val locations = listOf(
@@ -49,7 +61,7 @@ private fun onPlayerPickupFlag(event: PlayerMoveEvent)
     player.inventory.helmet = if (team == PlayerTeam.LEFT) buildItem(Material.BLUE_BANNER) else buildItem(Material.RED_BANNER)
 }
 
-@SubscribeEvent
+@SubscribeEvent(ignoreCancelled = true, priority = EventPriority.MONITOR)
 private fun onPlayerSetFlag(event: PlayerMoveEvent)
 {
     val world = getGameWorld(event.player.world.name) ?: return
@@ -79,7 +91,7 @@ private fun onPlayerSetFlag(event: PlayerMoveEvent)
     }
 }
 
-@SubscribeEvent
+@SubscribeEvent(ignoreCancelled = true, priority = EventPriority.MONITOR)
 private fun onPlayerCaught(event: PlayerMoveEvent)
 {
     val world = getGameWorld(event.player.world.name) ?: return
@@ -87,6 +99,7 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
     val player = event.player
     val team = world.getPlayerTeam(player.name)
     if (team == PlayerTeam.NONE) return
+    if (player.inventory.helmet == parasiticHelmet) return
 
     val selfLocationStatus = if (team == PlayerTeam.LEFT) LocationStatus.IN_LEFT_FIELD else LocationStatus.IN_RIGHT_FIELD
     val enemyLocationStatus = if (team == PlayerTeam.LEFT) LocationStatus.IN_RIGHT_FIELD else LocationStatus.IN_LEFT_FIELD
@@ -96,7 +109,7 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
     val entities = player
         .getNearbyEntities(0.5, 1.0, 0.5)
         .filterIsInstance<Player>()
-        .filter { world.getPlayerTeam(it.name) != team }
+        .filter { world.getPlayerTeam(it.name) != team && it.inventory.helmet != parasiticHelmet }
 
     for (entity in entities)
     {
@@ -142,6 +155,74 @@ private fun onPlayerDeath(event: PlayerRespawnEvent)
         PlayerTeam.RIGHT -> LocationStatus.IN_RIGHT_PRISON.location(world)
     }
     event.respawnLocation = prisonLocation
+}
+
+val parasiticHelmet = buildItem(Material.LEATHER_HELMET)
+{
+    this.color = Color.GREEN
+    enchants[Enchantment.BINDING_CURSE] = 1
+}
+
+// 玩家被寄生
+fun onPlayerParasitic(world: GameWorld, player: Player)
+{
+    onPlayerDropFlag(player)
+    val speed = player.walkSpeed
+    player.walkSpeed = 0.0f
+    var tick = 0
+
+    player.inventory.helmet = parasiticHelmet
+    player.addPotionEffect(PotionEffect(PotionEffectType.JUMP_BOOST, Int.MAX_VALUE, 200, false, false, false))
+
+    submit(period = 1)
+    {
+        tick++
+        if (tick >= 260 || !player.isOnline || !world.gameStatus.inGame())
+        {
+            player.inventory.helmet = null
+            return@submit cancel()
+        }
+        if (tick >= 200)
+        {
+            player.walkSpeed = speed
+            player.removePotionEffect(PotionEffectType.JUMP_BOOST)
+            return@submit
+        }
+        val nearest = (world.leftGroupPlayers() + world.rightGroupPlayers()).asSequence()
+            .filter { it != player.name }
+            .mapNotNull { Bukkit.getPlayer(it) }
+            .filter { it.world == player.world }
+            .filter { it.inventory.helmet != parasiticHelmet }
+            .minByOrNull { it.location.distanceSquared(player.location) }
+
+        val v =
+            nearest?.location?.toVector()?.subtract(player.location.toVector())?.normalize()?.multiply(0.3)
+            ?: random(0.0, Math.PI * 2).let { Vector(cos(it), 0.0, sin(it)).multiply(0.3) }
+
+        player.velocity = Vector(v.x, player.velocity.y, v.z)
+    }
+}
+
+// 传染
+@SubscribeEvent(ignoreCancelled = true, priority = EventPriority.MONITOR)
+private fun onPlayerParasitic(event: PlayerMoveEvent)
+{
+    val world = getGameWorld(event.player.world.name) ?: return
+    if (!world.gameStatus.inGame()) return
+    val player = event.player
+    val team = world.getPlayerTeam(player.name)
+    if (team == PlayerTeam.NONE) return
+
+    val entities = player
+        .getNearbyEntities(0.5, 1.0, 0.5)
+        .filterIsInstance<Player>()
+        .filter { (player.inventory.helmet == parasiticHelmet) != (it.inventory.helmet == parasiticHelmet) }
+
+    for (entity in entities)
+    {
+        if (player.inventory.helmet == parasiticHelmet) onPlayerParasitic(world, entity)
+        else onPlayerParasitic(world, player)
+    }
 }
 
 private fun onPlayerDropFlag(player: Player)

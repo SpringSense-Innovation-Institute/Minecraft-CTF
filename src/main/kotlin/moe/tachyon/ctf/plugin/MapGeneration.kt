@@ -6,6 +6,7 @@ import org.bukkit.Material
 import org.bukkit.block.data.Bisected
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.MushroomCow
+import org.bukkit.entity.Silverfish
 import org.bukkit.util.BoundingBox
 import org.bukkit.util.Vector
 import taboolib.common.util.randomDouble
@@ -171,6 +172,23 @@ fun GameWorld.generateMap()
         count++
     }
 
+    // 生成蠹虫
+    count = 0
+    generateSilverfish@while (count < playerCountPerGroup * 2)
+    {
+        val x = (1..24).random() * if (count >= playerCountPerGroup) -1 else 1
+        val z = (-36..36).random()
+        val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
+        if (!location.isEmpty())
+            continue@generateSilverfish
+
+        val e = location.world!!.spawnEntity(location.add(0.0, 1.0, 0.0), EntityType.SILVERFISH) as Silverfish
+        e.clearGoalAi()
+        e.clearTargetAi()
+        e.addTargetAi(SilverfishAI(this, e), 1)
+        count++
+    }
+
     // 生成发光鱿鱼
     count = 0
     generateSquid@while (count < 5)
@@ -265,5 +283,36 @@ private class CowAI(
             cooldown = true
             sprinting = false
         }
+    }
+}
+
+private class SilverfishAI(
+    private val world: GameWorld,
+    val bug: Silverfish,
+): SimpleAi()
+{
+    override fun shouldExecute(): Boolean = world.gameStatus.inGame()
+    override fun continueExecute(): Boolean = world.gameStatus.inGame()
+    override fun resetTask() = Unit
+    override fun startTask() = Unit
+    override fun updateTask()
+    {
+        val target = world.getPlayers()
+                         .asSequence()
+                         .filter { world.getPlayerTeam(it) != PlayerTeam.NONE }
+                         .mapNotNull { Bukkit.getPlayer(it) }
+                         .map { it to it.location }
+                         .filter { it.second.world == bug.world }
+                         .filter { it.first.inventory.helmet != parasiticHelmet }
+                         .minByOrNull { it.second.distanceSquared(bug.location) } ?: return
+
+        if (target.first.world != bug.world) return
+
+        bug.navigationMove(target.first, 0.9)
+
+        if (target.second.distanceSquared(bug.location) < 2.0)
+            bug.velocity = Vector(target.second.x - bug.location.x, 0.0, target.second.z - bug.location.z).normalize().multiply(0.3)
+        if (target.second.distanceSquared(bug.location) < 0.5)
+            onPlayerParasitic(world, target.first)
     }
 }
