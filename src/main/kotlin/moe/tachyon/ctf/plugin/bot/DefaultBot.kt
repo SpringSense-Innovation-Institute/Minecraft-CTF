@@ -47,9 +47,9 @@ open class DefaultBot(world: GameWorld): Bot(world)
 
         val nextLocation = Location(
             curLocation.world,
-            curLocation.blockX + step.first + 0.5,
+            curX - 24 + step.first + 0.5,
             curLocation.y,
-            curLocation.blockZ + step.second + 0.5
+            curZ - 36 + step.second + 0.5
         )
 
         val location = curLocation.clone()
