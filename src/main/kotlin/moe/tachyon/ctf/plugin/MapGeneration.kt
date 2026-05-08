@@ -11,7 +11,7 @@ import org.bukkit.util.Vector
 import taboolib.common.util.randomDouble
 import taboolib.module.ai.*
 import taboolib.module.navigation.isWater
-import taboolib.platform.util.isNotAir
+import kotlin.random.Random
 
 fun GameWorld.clearMap()
 {
@@ -104,6 +104,12 @@ fun GameWorld.generateMap()
     for (flag in rightFlags)
         Location(bukkitWorld(), flag.first.toDouble(), 2.0, flag.second.toDouble()).block.type = Material.BLUE_BANNER
 
+
+    fun Location.isEmpty() =
+        block.type == Material.GRASS_BLOCK &&
+        clone().add(0.0, 1.0, 0.0).block.type.isAir &&
+        clone().add(0.0, 2.0, 0.0).block.type.isAir
+
     // 生成树
     count = 0
     generateTree@while (count < 10)
@@ -115,8 +121,7 @@ fun GameWorld.generateMap()
 
         for (dx in -1..1)
             for (dz in -1..1)
-                if (location.clone().add(dx.toDouble(), 0.0, dz.toDouble()).block.type != Material.GRASS_BLOCK ||
-                    location.clone().add(dx.toDouble(), 1.0, dz.toDouble()).block.type.isNotAir())
+                if (!location.clone().add(dx.toDouble(), 0.0, dz.toDouble()).isEmpty())
                     continue@generateTree
 
         for (dx in -1..1)
@@ -137,9 +142,7 @@ fun GameWorld.generateMap()
         val x = (1..24).random() * if (count >= 5) -1 else 1
         val z = (-36..36).random()
         val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
-        if (location.block.type != Material.GRASS_BLOCK ||
-            location.clone().add(0.0, 1.0, 0.0).block.type.isNotAir() ||
-            location.clone().add(0.0, 2.0, 0.0).block.type.isNotAir())
+        if (!location.isEmpty())
             continue@generatePitcher
 
         location.clone().add(0.0, 1.0, 0.0).block.blockData =
@@ -153,14 +156,12 @@ fun GameWorld.generateMap()
 
     // 生成哞菇
     count = 0
-    generateMushroom@while (count < playerCountPerGroup * 3)
+    generateMushroom@while (count < playerCountPerGroup * 2)
     {
         val x = (1..24).random() * if (count >= playerCountPerGroup) -1 else 1
         val z = (-36..36).random()
         val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
-        if (location.block.type != Material.GRASS_BLOCK ||
-            location.clone().add(0.0, 1.0, 0.0).block.type.isNotAir() ||
-            location.clone().add(0.0, 2.0, 0.0).block.type.isNotAir())
+        if (!location.isEmpty())
             continue@generateMushroom
         val e = location.world!!.spawnEntity(location.add(0.0, 1.0, 0.0), EntityType.MOOSHROOM) as MushroomCow
         e.variant = if (randomDouble() < 0.5) MushroomCow.Variant.BROWN else MushroomCow.Variant.RED
@@ -178,6 +179,38 @@ fun GameWorld.generateMap()
         val location = Location(bukkitWorld(), 0.5, -1.0, z.toDouble())
         if (!location.block.type.isWater()) continue@generateSquid
         location.world!!.spawnEntity(location, EntityType.GLOW_SQUID)
+        count++
+    }
+
+    // 生成蜂蜜块
+    count = 0
+    generateWeb@while (count < 16)
+    {
+        val x = (1..24).random() * if (count >= 8) -1 else 1
+        val z = (-36..36).random()
+        val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
+        if (!location.isEmpty())
+            continue@generateWeb
+
+        location.block.type = Material.HONEY_BLOCK
+        // 让蜂蜜块随机蔓延
+        val list = mutableListOf(location.clone())
+        repeat(Random.nextInt(9, 20))
+        {
+            val adjacent = list.flatMap()
+            {
+                listOf(
+                    it.clone().add(1.0, 0.0, 0.0),
+                    it.clone().add(-1.0, 0.0, 0.0),
+                    it.clone().add(0.0, 0.0, 1.0),
+                    it.clone().add(0.0, 0.0, -1.0)
+                )
+            }.filter { it.isEmpty() }
+
+            val loc = adjacent.randomOrNull() ?: return@repeat
+            loc.block.type = Material.HONEY_BLOCK
+            list += loc
+        }
         count++
     }
 }
