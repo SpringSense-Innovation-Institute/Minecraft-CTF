@@ -41,7 +41,7 @@ fun GameWorld.clearMap()
             }
         }
 
-    val box = BoundingBox(-24.0, -64.0, -36.0, 24.0, 20.0, 36.0)
+    val box = BoundingBox(-24.0, -64.0, -36.0, 24.0, 10.0, 36.0)
     bukkitWorld()?.getNearbyEntities(box)?.forEach()
     {
         if (it.type != EntityType.PLAYER)
