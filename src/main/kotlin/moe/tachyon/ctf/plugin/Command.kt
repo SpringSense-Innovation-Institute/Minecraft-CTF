@@ -11,9 +11,24 @@ import taboolib.common.platform.command.PermissionDefault
 import taboolib.common.platform.command.simpleCommand
 import taboolib.common.platform.command.subCommand
 
+/**
+ * 注册CTF命令（/ctf <watch|menu|listWorlds|clearWorlds>）
+ * 
+ * @see Commands.watch
+ * @see Commands.menu
+ * @see Commands.listWorlds
+ * @see Commands.clearWorlds
+ */
 @CommandHeader(name = "ctf")
 object Commands
 {
+	/**
+	 * 注册CTF观看命令（/ctf watch），传送到当前对战世界的观看位置
+	 * 
+	 * @see Player
+	 * @see Location
+	 * @see teleport
+	 */
     @CommandBody
     val watch = subCommand()
     {
@@ -30,6 +45,12 @@ object Commands
         }
     }
 
+	/**
+	 * 注册CTF菜单命令（/ctf menu），打开CTF菜单
+	 * 
+	 * @see Player
+	 * @see openMenu
+	 */
     @CommandBody
     val menu = subCommand()
     {
@@ -39,6 +60,13 @@ object Commands
         }
     }
 
+	/**
+	 * 注册CTF列表命令（/ctf listWorlds），列出当前正在运行的游戏世界
+	 * 
+	 * @see Player
+	 * @see getGameWorlds
+	 * @see sendMessage
+	 */
     @CommandBody
     val listWorlds = subCommand()
     {
@@ -58,6 +86,13 @@ object Commands
         }
     }
 
+	/**
+	 * 注册CTF清空命令（/ctf clearWorlds），清空当前正在运行的游戏世界
+	 * 
+	 * @see Player
+	 * @see getGameWorlds
+	 * @see checkGameWorldRecycle
+	 */
     @CommandBody
     val clearWorlds = subCommand()
     {
@@ -68,6 +103,13 @@ object Commands
     }
 }
 
+/**
+ * 注册CTF菜单命令（/ctfmenu），打开CTF菜单
+ * 
+ * @see ProxyPlayer
+ * @see Player
+ * @see openMenu
+ */
 @Awake(LifeCycle.ENABLE)
 fun registerMenuCommand()
 {
