@@ -41,8 +41,8 @@ enum class LocationStatus
     {
         IN_LEFT_FIELD, IN_LEFT_BASE -> Location(world.bukkitWorld(), -21.5, 1.0, 0.5)
         IN_RIGHT_FIELD, IN_RIGHT_BASE -> Location(world.bukkitWorld(), 22.5, 1.0, 0.5)
-        IN_LEFT_PRISON -> Location(world.bukkitWorld(), -15.5, 1.0, 28.5) // -16 1 28
-        IN_RIGHT_PRISON -> Location(world.bukkitWorld(), 16.5, 1.0, 28.5) // 16 1 28
+        IN_LEFT_PRISON -> Location(world.bukkitWorld(), -15.5, 1.0, 28.5)
+        IN_RIGHT_PRISON -> Location(world.bukkitWorld(), 16.5, 1.0, 28.5)
         IN_CENTER -> Location(world.bukkitWorld(), 0.5, 1.0, 0.5)
         IN_FIELD -> Location(world.bukkitWorld(), 0.5, 1.0, 0.5)
         OUT_OF_FIELD ->
@@ -73,15 +73,15 @@ enum class LocationStatus
         val z = location.blockZ
         return when (this)
         {
-            OUT_OF_FIELD -> x !in -24..24 || z !in -36..36 || y !in -64..20
-            IN_LEFT_FIELD -> x in -24..-1 && z in -36..36 && y in -64..20
-            IN_RIGHT_FIELD -> x in 1..24 && z in -36..36 && y in -64..20
-            IN_LEFT_BASE -> x in -23..-21 && z in -1..1 && y in -64..20
-            IN_RIGHT_BASE -> x in 21..23 && z in -1..1 && y in -64..20
-            IN_LEFT_PRISON -> x in -18..-14 && z in 26..30 && y in -64..20
-            IN_RIGHT_PRISON -> x in 14..18 && z in 26..30 && y in -64..20
-            IN_CENTER -> x == 0 && z in -36..36 && y in -64..20
-            IN_FIELD -> x in -24..24 && z in -36..36 && y in -64..20
+            OUT_OF_FIELD -> x !in -24..24 || z !in -36..36 || y !in -64..12
+            IN_LEFT_FIELD -> x in -24..-1 && z in -36..36 && y in -64..12
+            IN_RIGHT_FIELD -> x in 1..24 && z in -36..36 && y in -64..12
+            IN_LEFT_BASE -> x in -23..-21 && z in -1..1 && y in -64..12
+            IN_RIGHT_BASE -> x in 21..23 && z in -1..1 && y in -64..12
+            IN_LEFT_PRISON -> x in -18..-14 && z in 26..30 && y in -64..12
+            IN_RIGHT_PRISON -> x in 14..18 && z in 26..30 && y in -64..12
+            IN_CENTER -> x == 0 && z in -36..36 && y in -64..12
+            IN_FIELD -> x in -24..24 && z in -36..36 && y in -64..12
         }
     }
 }
