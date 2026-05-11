@@ -2,7 +2,11 @@ package moe.tachyon.ctf.plugin.bot
 
 import com.mojang.authlib.GameProfile
 import io.netty.channel.Channel
+import io.netty.channel.ChannelDuplexHandler
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelPromise
 import io.netty.channel.embedded.EmbeddedChannel
+import io.netty.util.ReferenceCountUtil
 import net.minecraft.network.NetworkManager
 import net.minecraft.network.protocol.EnumProtocolDirection
 import net.minecraft.network.protocol.Packet
@@ -69,7 +73,18 @@ class BotNMSHandlerImpl: BotNMSHandler()
 
         val channelField = NetworkManager::class.java.declaredFields.firstOrNull { it.type == Channel::class.java }
         channelField?.isAccessible = true
-        channelField?.set(fakeConnection, EmbeddedChannel())
+        channelField?.set(fakeConnection, EmbeddedChannel().apply()
+        {
+            pipeline().addFirst("bot_discard", object : ChannelDuplexHandler()
+            {
+                override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise)
+                {
+                    ReferenceCountUtil.release(msg)
+                    promise.setSuccess()
+                }
+                override fun flush(ctx: ChannelHandlerContext) = Unit
+            })
+        })
         channelField?.isAccessible = false
 
         val cookie = CommonListenerCookie.createInitial(profile, false)
