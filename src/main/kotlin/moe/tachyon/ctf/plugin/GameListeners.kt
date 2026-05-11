@@ -180,6 +180,8 @@ fun onPlayerParasitic(world: GameWorld, player: Player)
         if (tick >= 260 || !player.isOnline || !world.gameStatus.inGame())
         {
             player.inventory.helmet = null
+            player.walkSpeed = speed
+            player.removePotionEffect(PotionEffectType.JUMP_BOOST)
             return@submit cancel()
         }
         if (tick >= 200)
