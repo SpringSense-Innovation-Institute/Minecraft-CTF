@@ -44,7 +44,7 @@ taboolib {
             name("CyanTachyon")
         }
     }
-    version { taboolib = "6.2.4-6b473c4" }
+    version { taboolib = "6.3.0-932e79c" }
     relocate("kotlinx.serialization", "moe.tachyon.ctf.kotlinx.serialization")
 }
 
