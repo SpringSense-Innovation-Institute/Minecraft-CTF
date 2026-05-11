@@ -62,7 +62,7 @@ dependencies {
 
     taboo("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0") { isTransitive = false }
     taboo("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0") { isTransitive = false }
-
+    taboo("com.github.luben:zstd-jni:1.5.7-8")
 
 //    compileOnly("net.kyori:adventure-api:4.26.1")
 //    taboo("top.maplex.arim:Arim:1.3.12")
