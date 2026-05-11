@@ -2,6 +2,7 @@
 
 package moe.tachyon.ctf.plugin.auth
 
+import moe.tachyon.ctf.plugin.MinecraftCtfPlugin
 import org.bukkit.entity.Player
 import org.bukkit.event.Cancellable
 import org.bukkit.event.entity.EntityDamageByEntityEvent
@@ -16,7 +17,6 @@ import taboolib.common.platform.command.PermissionDefault
 import taboolib.common.platform.command.simpleCommand
 import taboolib.common.platform.event.EventPriority
 import taboolib.common.platform.event.SubscribeEvent
-import taboolib.platform.BukkitPlugin
 import java.util.*
 
 private val blockedUsers = Collections.synchronizedSet(mutableSetOf<String>())
@@ -102,13 +102,7 @@ private fun registerAuthListeners()
     { sender, arg ->
         if (sender !is ProxyPlayer) return@simpleCommand
         val player = sender.cast<Player>()
-        val passwordFile = BukkitPlugin.getInstance().dataFolder.resolve("passwords.txt")
-        if (!passwordFile.exists())
-        {
-            passwordFile.parentFile.mkdirs()
-            passwordFile.writeText("password123")
-        }
-        val password = passwordFile.readText().trim()
+        val password = MinecraftCtfPlugin.config.adminPassword
         if (arg.any { it == password })
         {
             blockedUsers -= player.name

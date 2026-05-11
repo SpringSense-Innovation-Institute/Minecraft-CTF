@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Minecraft 3D Viewer</title>
+    <link rel="stylesheet" href="viewer3d.css?v=20260507d" />
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <header class="app-header">
+        <div class="header-brand">
+          <span class="brand-title">Viewer 3D</span>
+          <span class="brand-subtitle">Minecraft Match Preview</span>
+        </div>
+        <div id="userBadge" class="user-badge"></div>
+      </header>
+
+      <main class="app-main">
+        <section id="menuScreen" class="panel menu-screen">
+          <div class="panel-card hero-card">
+            <div class="eyebrow">Online Preview</div>
+            <h1>选择要查看的对局</h1>
+            <p>
+              你可以直接进入当前 live 对局，也可以搜索并回放任意 record。
+            </p>
+            <div class="hero-actions">
+              <button id="startLiveButton" class="mc-button primary">
+                查看当前对局
+              </button>
+              <button id="returnHomeButton" class="mc-button secondary">
+                返回首页
+              </button>
+            </div>
+          </div>
+
+          <div class="panel-card record-card">
+            <div class="card-head">
+              <div>
+                <div class="eyebrow">Records</div>
+                <h2>历史记录</h2>
+              </div>
+              <button id="refreshRecordsButton" class="mc-button ghost">
+                刷新列表
+              </button>
+            </div>
+
+            <label class="search-wrap" for="recordSearchInput">
+              <span>搜索 record</span>
+              <input
+                id="recordSearchInput"
+                class="mc-input"
+                type="search"
+                placeholder="输入名字筛选"
+                autocomplete="off"
+              />
+            </label>
+
+            <div class="record-meta">
+              <span id="recordCountLabel">0 条记录</span>
+              <span id="recordStatusLabel">等待加载</span>
+            </div>
+
+            <div id="recordList" class="record-list"></div>
+          </div>
+        </section>
+
+        <section id="viewerScreen" class="viewer-screen hidden">
+          <div id="viewerMount" class="viewer-mount"></div>
+          <div class="viewer-crosshair" aria-hidden="true"></div>
+
+          <div class="viewer-topbar">
+            <button id="leaveViewerButton" class="mc-button secondary compact">
+              返回列表
+            </button>
+            <div class="viewer-title-wrap">
+              <div id="viewerTitle" class="viewer-title">准备连接</div>
+              <div id="viewerStatus" class="viewer-status">等待服务器响应</div>
+            </div>
+            <label class="viewer-interpolation">
+              <span class="viewer-interpolation-label">插帧</span>
+              <select id="interpolationSelect" class="mc-select">
+                <option value="0">关闭</option>
+                <option value="1">1 帧</option>
+                <option value="2">2 帧</option>
+                <option value="3">3 帧</option>
+              </select>
+            </label>
+            <div id="worldStats" class="world-stats">Blocks 0 · Entities 0</div>
+          </div>
+
+        </section>
+      </main>
+    </div>
+
+    <script src="/cdn/three.min.js"></script>
+    <script src="/cdn/fzstd.min.js"></script>
+    <script src="viewer3d.js?v=20260511embed1"></script>
+  </body>
+</html>

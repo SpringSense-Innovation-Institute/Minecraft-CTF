@@ -1,0 +1,543 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知春CTF Viewer 2D</title>
+    <script>
+        // 在页面渲染前进行前置鉴权，失败则立即跳转，避免闪烁
+        let currentUser = null;
+        try {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) throw new Error('No user data in localStorage');
+            currentUser = JSON.parse(userStr);
+            if (!currentUser || typeof currentUser.id === 'undefined') {
+                throw new Error('Invalid user format');
+            }
+        } catch (e) {
+            console.error('Authentication failed:', e);
+            window.location.href = '/';
+        }
+        // 异步验证 session 是否仍然有效
+        fetch('/login/check').then(res => {
+            if (!res.ok) {
+                localStorage.removeItem('user');
+                window.location.href = '/login';
+            } else {
+                return res.json();
+            }
+        }).then(data => {
+            if (data) {
+                localStorage.setItem('user', JSON.stringify(data));
+                currentUser = data;
+            }
+        }).catch(() => {
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        });
+    </script>
+    <style>
+        :root {
+            --bg-0: #0c161b;
+            --bg-1: #15252b;
+            --bg-2: #243840;
+            --panel: rgba(24, 34, 39, 0.94);
+            --panel-soft: rgba(36, 52, 58, 0.9);
+            --line: rgba(255, 255, 255, 0.14);
+            --text: #f4f3df;
+            --muted: #b7c5ba;
+            --accent: #74bf52;
+            --accent-2: #4b8a34;
+            --danger: #d25743;
+            --shadow: rgba(0, 0, 0, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        body {
+            color: var(--text);
+            font-family: Monaco, Consolas, "Lucida Console", monospace;
+            background:
+                    radial-gradient(circle at top, rgba(115, 196, 94, 0.18), transparent 28%),
+                    linear-gradient(180deg, #163246 0%, #0a171c 100%);
+        }
+
+        button {
+            font: inherit;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .app-shell {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .panel-card {
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            background:
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 100%),
+                    var(--panel);
+            box-shadow:
+                    0 22px 40px rgba(0, 0, 0, 0.28),
+                    inset 0 0 0 2px rgba(0, 0, 0, 0.18);
+            backdrop-filter: blur(10px);
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .hero-card {
+            padding: 32px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            text-align: center;
+        }
+
+        .hero-card h1 {
+            margin: 0;
+            font-size: 30px;
+            line-height: 1.15;
+            text-transform: uppercase;
+            text-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
+            color: #fff;
+        }
+
+        .hero-card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.75;
+            font-size: 14px;
+        }
+
+        .mc-button {
+            width: 100%;
+            padding: 14px 18px;
+            border: none;
+            cursor: pointer;
+            color: #f8f6e2;
+            font-size: 16px;
+            font-weight: bold;
+            text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+            background: linear-gradient(180deg, var(--accent) 0%, var(--accent-2) 100%);
+            box-shadow:
+                    inset 0 -3px 0 rgba(0, 0, 0, 0.28),
+                    inset 0 2px 0 rgba(255, 255, 255, 0.18),
+                    0 8px 18px rgba(0, 0, 0, 0.22);
+            transition: transform 120ms ease, filter 120ms ease;
+        }
+
+        .mc-button:hover {
+            filter: brightness(1.05);
+            transform: translateY(-1px);
+        }
+
+        .mc-button:active {
+            transform: translateY(1px);
+        }
+
+        /* 游戏界面容器 */
+        #game-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .viewer-topbar {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px;
+            background: rgba(12, 18, 21, 0.85);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .viewer-title {
+            font-size: 16px;
+            color: #fbf7d8;
+            white-space: pre-wrap;
+            text-align: center;
+            line-height: 1.5;
+            transition: color 0.3s;
+        }
+
+        /* 队伍颜色复写，适应暗黑背景 */
+        .team-red { color: #ff7875; text-shadow: 0 2px 0 rgba(0,0,0,0.5); }
+        .team-blue { color: #69c0ff; text-shadow: 0 2px 0 rgba(0,0,0,0.5); }
+
+        .viewer-screen {
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            flex: 1;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            background: #87bce7; /* 原本的蓝天背景，适合MC风格 */
+            box-shadow:
+                    0 24px 48px rgba(0, 0, 0, 0.3),
+                    inset 0 0 0 2px rgba(0, 0, 0, 0.12);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            display: block;
+            background-color: #fff;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            /* 原版的 filter 有点过亮，如果觉得刺眼可按需调节 */
+            filter: contrast(1.1) saturate(1.2);
+        }
+
+        .viewer-legend {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            padding: 12px 16px;
+            background: rgba(12, 18, 21, 0.85);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .legend-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+        }
+
+        .legend-player-red {
+            background: #ff4d4f;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+        }
+
+        .legend-player-blue {
+            background: #40a9ff;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+        }
+
+        .legend-cow {
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 16px solid #ffdbac;
+            background: none;
+        }
+
+        .legend-silverfish {
+            background: #a855f7;
+            border: 2px solid #7c3aed;
+            transform: rotate(45deg);
+            width: 12px;
+            height: 12px;
+        }
+
+        @media (max-width: 980px) {
+            .app-shell { padding: 14px; }
+            .hero-card h1 { font-size: 24px; }
+            .viewer-legend { gap: 12px; padding: 10px 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-shell">
+    <!-- 配置与入口界面 -->
+    <div id="setup-container" class="panel-card hero-card">
+        <h1>进入对局</h1>
+        <p id="welcome-message">读取玩家信息中...</p>
+        <button class="mc-button" onclick="connectGame()">连接服务器</button>
+    </div>
+
+    <!-- 游戏地图界面 -->
+    <div id="game-container" class="hidden">
+        <div class="viewer-topbar">
+            <div id="team-display" class="viewer-title">等待分配队伍...</div>
+        </div>
+        <div class="viewer-screen">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+        <div class="viewer-legend">
+            <div class="legend-item">
+                <span class="legend-icon legend-player-red"></span>
+                <span>红队玩家</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-icon legend-player-blue"></span>
+                <span>蓝队玩家</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-icon legend-cow"></span>
+                <span>哞菇牛</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-icon legend-silverfish"></span>
+                <span>蠹虫</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CELL_SIZE = 50;
+    let sseConnection = null;
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const COLOR_COW = '#ffdbac';
+    const COLOR_COW_STROKE = '#855e42';
+    const COLOR_SILVERFISH = '#a855f7';
+    const COLOR_SILVERFISH_STROKE = '#7c3aed';
+
+    // 页面加载完成后，显示玩家欢迎信息
+    document.addEventListener('DOMContentLoaded', () => {
+        if (currentUser && currentUser.name) {
+            document.getElementById('welcome-message').innerText = `欢迎玩家：${currentUser.name}`;
+        }
+    });
+
+    function connectGame() {
+        const host = window.location.origin + "/viewer2d/sse";
+
+        const url = new URL(host);
+
+        // 切换 UI
+        document.getElementById('setup-container').classList.add('hidden');
+        document.getElementById('game-container').classList.remove('hidden');
+
+        if (sseConnection) sseConnection.close();
+        sseConnection = new EventSource(url.toString());
+
+        sseConnection.onopen = () => {
+            const teamEl = document.getElementById('team-display');
+            if (teamEl.innerText.includes('重连中')) {
+                teamEl.innerText = teamEl.dataset.originalText || '✅ 连接成功';
+                teamEl.style.opacity = '1';
+            }
+        };
+
+        sseConnection.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                renderGame(data);
+            } catch (err) {
+                console.error('JSON 解析失败:', err);
+            }
+        };
+
+        sseConnection.onerror = (err) => {
+            const teamEl = document.getElementById('team-display');
+            if (sseConnection.readyState === EventSource.CONNECTING) {
+                if (!teamEl.dataset.originalText && teamEl.innerText !== '等待分配队伍...') {
+                    teamEl.dataset.originalText = teamEl.innerText;
+                }
+                teamEl.innerText = '⚠️ 网络波动，重连中...';
+                teamEl.style.opacity = '0.6';
+            } else if (sseConnection.readyState === EventSource.CLOSED) {
+                teamEl.innerText = '❌ 连接已断开，请刷新';
+                teamEl.className = 'viewer-title';
+            }
+        };
+    }
+
+    // 主渲染函数保持不变
+    function renderGame(data) {
+        const { myTeam, map, players, cows, leftScore, rightScore } = data;
+
+        const teamEl = document.getElementById('team-display');
+        if (sseConnection.readyState === EventSource.OPEN) {
+            if (myTeam === 'red') {
+                teamEl.className = 'viewer-title team-red';
+                teamEl.innerText = '🔴 你是红队 (RED)\n你:对手=' + leftScore + ':' + rightScore;
+            } else if (myTeam === 'blue') {
+                teamEl.className = 'viewer-title team-blue';
+                teamEl.innerText = '🔵 你是蓝队 (BLUE)\n你:对手=' + rightScore + ':' + leftScore;
+            }
+        }
+
+        const mapWidth = map.length;
+        const mapHeight = map[0].length;
+
+        canvas.width = mapHeight * CELL_SIZE;
+        canvas.height = mapWidth * CELL_SIZE;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let x = 0; x < mapWidth; x++) {
+            for (let y = 0; y < mapHeight; y++) {
+                drawCell(x, y, map[x][y], mapWidth);
+            }
+        }
+
+        ctx.save();
+        ctx.beginPath();
+        const centerY = canvas.height / 2;
+        ctx.moveTo(0, centerY);
+        ctx.lineTo(canvas.width, centerY);
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([10, 8]);
+        ctx.stroke();
+        ctx.restore();
+
+        if (cows && Array.isArray(cows)) {
+            cows.forEach(cow => {
+                drawCow(cow.x, cow.y, mapWidth);
+            });
+        }
+
+        if (data.silverfish && Array.isArray(data.silverfish)) {
+            data.silverfish.forEach(sf => {
+                drawSilverfish(sf.x, sf.y, mapWidth);
+            });
+        }
+
+        if (players) {
+            for (const key in players) {
+                if (players.hasOwnProperty(key)) {
+                    const p = players[key];
+                    drawPlayer(p.x, p.y, p.team, mapWidth);
+                }
+            }
+        }
+    }
+
+    function drawCell(x, y, type, mapWidth) {
+        const cx = y * CELL_SIZE;
+        const cy = (mapWidth - 1 - x) * CELL_SIZE;
+
+        const halfSize = CELL_SIZE / 2;
+        const offset = CELL_SIZE / 4;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(cx, cy, CELL_SIZE, CELL_SIZE);
+
+        if (type === 'OBSTACLE') {
+            ctx.fillStyle = '#333333';
+            ctx.fillRect(cx, cy, CELL_SIZE, CELL_SIZE);
+        } else if (type !== 'BLANK') {
+            if (type.includes('TARGET')) {
+                ctx.fillStyle = '#ffd700';
+                ctx.fillRect(cx, cy, CELL_SIZE, CELL_SIZE);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(cx + offset, cy + offset, halfSize, halfSize);
+            }
+
+            if (type === 'LEFT_FLAG' || type === 'LEFT_TARGET_WITH_FLAG') {
+                ctx.fillStyle = '#cf1322';
+                ctx.fillRect(cx + offset, cy + offset, halfSize, halfSize);
+            } else if (type === 'RIGHT_FLAG' || type === 'RIGHT_TARGET_WITH_FLAG') {
+                ctx.fillStyle = '#096dd9';
+                ctx.fillRect(cx + offset, cy + offset, halfSize, halfSize);
+            }
+        }
+
+        ctx.strokeStyle = '#e8e8e8';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cx, cy, CELL_SIZE, CELL_SIZE);
+    }
+
+    function drawCow(x, y, mapWidth) {
+        const px = y * CELL_SIZE;
+        const py = (mapWidth - x) * CELL_SIZE;
+        const size = CELL_SIZE * 0.4;
+
+        ctx.save();
+        ctx.translate(px, py);
+
+        ctx.beginPath();
+        ctx.moveTo(0, -size);
+        ctx.lineTo(-size * 0.86, size/2);
+        ctx.lineTo(size * 0.86, size/2);
+        ctx.closePath();
+
+        ctx.fillStyle = COLOR_COW;
+        ctx.fill();
+
+        ctx.strokeStyle = COLOR_COW_STROKE;
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    function drawPlayer(x, y, team, mapWidth) {
+        const px = y * CELL_SIZE;
+        const py = (mapWidth - x) * CELL_SIZE;
+        const radius = CELL_SIZE * 0.3;
+
+        ctx.beginPath();
+        ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.fillStyle = team === 'red' ? '#ff4d4f' : '#40a9ff';
+        ctx.fill();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    function drawSilverfish(x, y, mapWidth) {
+        const px = y * CELL_SIZE;
+        const py = (mapWidth - x) * CELL_SIZE;
+        const size = CELL_SIZE * 0.35;
+
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(Math.PI / 4);
+
+        ctx.fillStyle = COLOR_SILVERFISH;
+        ctx.fillRect(-size / 2, -size / 2, size, size);
+
+        ctx.strokeStyle = COLOR_SILVERFISH_STROKE;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-size / 2, -size / 2, size, size);
+
+        ctx.restore();
+    }
+</script>
+</body>
+</html>

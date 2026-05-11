@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知春CTF 团队注册系统</title>
+    <script src="/cdn/vue.global.prod.min.js"></script>
+    <script src="/cdn/axios.min.js"></script>
+    <style>
+        :root {
+            --bg-0: #0c161b;
+            --bg-1: #15252b;
+            --bg-2: #243840;
+            --panel: rgba(24, 34, 39, 0.94);
+            --panel-soft: rgba(36, 52, 58, 0.9);
+            --line: rgba(255, 255, 255, 0.14);
+            --text: #f4f3df;
+            --muted: #b7c5ba;
+            --accent: #74bf52;
+            --accent-2: #4b8a34;
+            --danger: #d25743;
+            --shadow: rgba(0, 0, 0, 0.35);
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        body {
+            color: var(--text);
+            font-family: Monaco, Consolas, "Lucida Console", monospace;
+            background:
+                    radial-gradient(circle at top, rgba(115, 196, 94, 0.18), transparent 28%),
+                    linear-gradient(180deg, #163246 0%, #0a171c 100%);
+        }
+
+        button, input { font: inherit; }
+        .hidden { display: none !important; }
+
+        /* 基础布局 */
+        .app-shell {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            overflow-y: auto;
+        }
+
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            z-index: 2;
+        }
+
+        .header-brand { display: flex; flex-direction: column; gap: 4px; }
+
+        .brand-title {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .brand-subtitle, .eyebrow, .record-meta, .hint-chip { color: var(--muted); }
+        .brand-subtitle, .eyebrow { font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; }
+
+        /* 网格布局 */
+        .app-main { min-height: 0; flex: 1; }
+        .menu-screen {
+            width: 100%;
+            display: grid;
+            grid-template-columns: minmax(300px, 400px) minmax(320px, 1fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        /* 卡片与面板 */
+        .panel-card {
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            background:
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 100%),
+                    var(--panel);
+            box-shadow:
+                    0 22px 40px rgba(0, 0, 0, 0.28),
+                    inset 0 0 0 2px rgba(0, 0, 0, 0.18);
+            backdrop-filter: blur(10px);
+        }
+
+        .hero-card { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+        .record-card { padding: 24px; display: flex; flex-direction: column; gap: 16px; min-height: 500px; }
+
+        .card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+        .card-head h2 { margin: 0; font-size: 22px; line-height: 1.15; }
+
+        /* 表单控件 */
+        .search-wrap { display: grid; gap: 8px; }
+        .mc-input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid rgba(255, 255, 255, 0.14);
+            background: rgba(10, 17, 20, 0.9);
+            color: var(--text);
+            outline: none;
+        }
+        .mc-input:focus {
+            border-color: rgba(116, 191, 82, 0.7);
+            box-shadow: 0 0 0 3px rgba(116, 191, 82, 0.18);
+        }
+        .divider { height: 2px; background: var(--line); margin: 8px 0; }
+
+        /* 列表展示 */
+        .groups-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 14px;
+            overflow: auto;
+            padding-right: 4px;
+            align-content: start;
+        }
+        .groups-grid::-webkit-scrollbar { width: 10px; }
+        .groups-grid::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); }
+
+        .record-item {
+            width: 100%;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            background: var(--panel-soft);
+            color: var(--text);
+            text-align: left;
+            transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+        }
+        .record-item:hover {
+            transform: translateY(-2px);
+            border-color: rgba(116, 191, 82, 0.48);
+            background: rgba(53, 72, 79, 0.94);
+        }
+        .record-name { font-size: 18px; font-weight: bold; color: var(--accent); }
+
+        .player-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 14px;
+        }
+
+        .empty-state {
+            padding: 24px;
+            text-align: center;
+            border: 2px dashed rgba(255, 255, 255, 0.12);
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        /* 按钮 */
+        .mc-button {
+            padding: 12px 18px;
+            border: none;
+            cursor: pointer;
+            color: #f8f6e2;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+            background: linear-gradient(180deg, var(--accent) 0%, var(--accent-2) 100%);
+            box-shadow:
+                    inset 0 -3px 0 rgba(0, 0, 0, 0.28),
+                    inset 0 2px 0 rgba(255, 255, 255, 0.18),
+                    0 8px 18px rgba(0, 0, 0, 0.22);
+            transition: transform 120ms ease, filter 120ms ease;
+        }
+        .mc-button:hover:not(:disabled) { filter: brightness(1.05); transform: translateY(-1px); }
+        .mc-button:active:not(:disabled) { transform: translateY(1px); }
+        .mc-button:disabled { filter: grayscale(1); cursor: not-allowed; opacity: 0.7; }
+        .mc-button.secondary { background: linear-gradient(180deg, #6f7b82 0%, #505b63 100%); }
+        .mc-button.compact { padding: 8px 14px; font-size: 14px; }
+        .mc-button.danger { background: linear-gradient(180deg, var(--danger) 0%, #a13d2d 100%); }
+
+        /* 提示框 */
+        .mc-alert {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 18px;
+            border-left: 4px solid var(--accent);
+            margin-bottom: 20px;
+            animation: slideIn 0.3s ease forwards;
+        }
+        .mc-alert.alert-danger { border-left-color: var(--danger); }
+        .mc-alert.alert-warning { border-left-color: #e5b567; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 980px) {
+            .app-shell { padding: 14px; overflow-y: auto; }
+            .menu-screen { grid-template-columns: 1fr; }
+        }
+
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="app" class="app-shell" v-cloak>
+    <!-- 导航栏 -->
+    <header class="app-header">
+        <div class="header-brand">
+            <div class="brand-title">⚔️ 赛事队伍注册</div>
+            <div class="brand-subtitle">知春CTF Team Registration System</div>
+        </div>
+    </header>
+
+    <!-- 全局提示框 -->
+    <div v-if="alert.show" class="panel-card mc-alert" :class="'alert-' + alert.type">
+        <span>{{ alert.message }}</span>
+        <button type="button" class="mc-button secondary compact" @click="alert.show = false">关闭</button>
+    </div>
+
+    <main class="app-main menu-screen">
+        <!-- 左侧：注册表单 -->
+        <div class="panel-card hero-card">
+            <div class="card-head">
+                <h2>➕ 注册新队伍</h2>
+                <span class="hint-chip" style="border: 1px solid var(--line); padding: 4px 8px;">需3人</span>
+            </div>
+
+            <form @submit.prevent="submitGroup" style="display: flex; flex-direction: column; gap: 16px;">
+                <div class="search-wrap">
+                    <label class="eyebrow">队伍名称</label>
+                    <input type="text" class="mc-input" v-model="form.name" placeholder="请输入高大上的队名" required>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="search-wrap">
+                    <label class="eyebrow">队员 1 (队长)</label>
+                    <input type="text" class="mc-input" v-model="form.player1" placeholder="真实姓名" required>
+                </div>
+                <div class="search-wrap">
+                    <label class="eyebrow">队员 2</label>
+                    <input type="text" class="mc-input" v-model="form.player2" placeholder="真实姓名" required>
+                </div>
+                <div class="search-wrap">
+                    <label class="eyebrow">队员 3</label>
+                    <input type="text" class="mc-input" v-model="form.player3" placeholder="真实姓名" required>
+                </div>
+
+                <button type="submit" class="mc-button" style="margin-top: 8px;" :disabled="isSubmitting">
+                    {{ isSubmitting ? '正在提交注册...' : '提交注册申请' }}
+                </button>
+            </form>
+        </div>
+
+        <!-- 右侧：已有队伍列表 -->
+        <div class="panel-card record-card">
+            <div class="card-head">
+                <h2>🏆 已注册队伍 ({{ groups.length }})</h2>
+                <button class="mc-button secondary compact" @click="fetchGroups">刷新信息</button>
+            </div>
+
+            <div v-if="isLoading" class="empty-state">
+                <div style="margin-bottom: 8px;">⏳</div>
+                正在通过红石网络加载队伍信息...
+            </div>
+
+            <div v-else-if="groups.length === 0" class="empty-state">
+                暂无队伍注册，快来抢占服务器首杀吧！
+            </div>
+
+            <div class="groups-grid" v-else>
+                <div class="record-item" v-for="group in groups" :key="group.id">
+                    <div class="record-name">#{{ group.id }} {{ group.name }}</div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <div class="player-row" v-for="player in group.players" :key="player.id">
+                            <span>👤 {{ player.name }}</span>
+                            <span class="record-meta">ID: {{ player.id }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    const { createApp, ref, reactive, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            const groups = ref([]);
+            const isLoading = ref(false);
+            const isSubmitting = ref(false);
+            const form = reactive({
+                name: '',
+                player1: '',
+                player2: '',
+                player3: ''
+            });
+            const alert = reactive({
+                show: false,
+                type: 'success',
+                message: ''
+            });
+
+            const showAlert = (message, type = 'success') => {
+                alert.message = message;
+                alert.type = type;
+                alert.show = true;
+                setTimeout(() => { alert.show = false; }, 5000);
+            };
+
+            const fetchGroups = async () => {
+                isLoading.value = true;
+                try {
+                    const response = await axios.get('/groups');
+                    groups.value = response.data;
+                } catch (error) {
+                    showAlert('获取队伍列表失败: ' + (error.response?.data || error.message), 'danger');
+                } finally {
+                    isLoading.value = false;
+                }
+            };
+
+            const submitGroup = async () => {
+                const playerNames = [form.player1.trim(), form.player2.trim(), form.player3.trim()];
+                const uniquePlayers = new Set(playerNames);
+                if (uniquePlayers.size !== 3) {
+                    showAlert('队伍内不能有重复的玩家姓名！', 'warning');
+                    return;
+                }
+
+                isSubmitting.value = true;
+                const payload = {
+                    name: form.name.trim(),
+                    players: playerNames
+                };
+
+                try {
+                    await axios.post('/registerGroup', payload);
+
+                    showAlert(`队伍 "${'$'}{payload.name}" 注册成功！`);
+
+                    form.name = '';
+                    form.player1 = '';
+                    form.player2 = '';
+                    form.player3 = '';
+
+                    fetchGroups();
+                } catch (error) {
+                    const errorMsg = error.response?.data || '网络错误或服务器无响应';
+                    showAlert(`注册失败: ${'$'}{errorMsg}`, 'danger');
+                } finally {
+                    isSubmitting.value = false;
+                }
+            };
+
+            onMounted(() => {
+                fetchGroups();
+            });
+
+            return {
+                groups,
+                isLoading,
+                isSubmitting,
+                form,
+                alert,
+                fetchGroups,
+                submitGroup
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>

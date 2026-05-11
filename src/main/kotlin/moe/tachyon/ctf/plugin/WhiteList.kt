@@ -10,7 +10,7 @@ import taboolib.common.platform.command.simpleCommand
 import taboolib.common.platform.event.SubscribeEvent
 import taboolib.common.platform.function.info
 
-private var whiteListMode = false
+var whiteListMode = false
 
 @SubscribeEvent
 private fun onPlayerJoin(event: PlayerJoinEvent)

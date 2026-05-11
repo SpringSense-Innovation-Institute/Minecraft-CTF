@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知春CTF 管理员面板</title>
+    <script src="/cdn/vue.global.prod.min.js"></script>
+    <script src="/cdn/axios.min.js"></script>
+    <style>
+        :root {
+            --bg-0: #0c161b;
+            --bg-1: #15252b;
+            --bg-2: #243840;
+            --panel: rgba(24, 34, 39, 0.94);
+            --panel-soft: rgba(36, 52, 58, 0.9);
+            --line: rgba(255, 255, 255, 0.14);
+            --text: #f4f3df;
+            --muted: #b7c5ba;
+            --accent: #74bf52;
+            --accent-2: #4b8a34;
+            --danger: #d25743;
+            --shadow: rgba(0, 0, 0, 0.35);
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            width: 100%;
+            min-height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            color: var(--text);
+            font-family: Monaco, Consolas, "Lucida Console", monospace;
+            background:
+                radial-gradient(circle at top, rgba(115, 196, 94, 0.18), transparent 28%),
+                linear-gradient(180deg, #163246 0%, #0a171c 100%);
+            background-attachment: fixed;
+            padding: 24px;
+        }
+
+        button, input, select { font: inherit; }
+
+        .app-shell {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-brand { display: flex; flex-direction: column; gap: 4px; }
+
+        .brand-title {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
+            margin: 0;
+        }
+
+        .brand-subtitle { color: var(--muted); font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; margin: 0; }
+
+        /* 面板卡片 */
+        .panel-card {
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 100%),
+                var(--panel);
+            box-shadow:
+                0 22px 40px rgba(0, 0, 0, 0.28),
+                inset 0 0 0 2px rgba(0, 0, 0, 0.18);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 两栏布局 */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 960px) {
+            .two-col { grid-template-columns: 1fr; }
+        }
+
+        /* 白名单控制 */
+        .whitelist-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .whitelist-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+        }
+
+        .status-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .status-dot.on { color: var(--accent); background: var(--accent); }
+        .status-dot.off { color: var(--danger); background: var(--danger); }
+
+        .toggle-btn {
+            padding: 10px 22px;
+            border: none;
+            cursor: pointer;
+            color: #f8f6e2;
+            font-weight: bold;
+            text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+            transition: transform 120ms ease, filter 120ms ease;
+        }
+
+        .toggle-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+        .toggle-btn:active { transform: translateY(1px); }
+
+        .toggle-btn.enable {
+            background: linear-gradient(180deg, var(--accent) 0%, var(--accent-2) 100%);
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.28), inset 0 2px 0 rgba(255,255,255,0.18), 0 8px 18px rgba(0,0,0,0.22);
+        }
+
+        .toggle-btn.disable {
+            background: linear-gradient(180deg, var(--danger) 0%, #a13d2d 100%);
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.28), inset 0 2px 0 rgba(255,255,255,0.18), 0 8px 18px rgba(0,0,0,0.22);
+        }
+
+        /* 表单控件 */
+        .mc-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid rgba(255, 255, 255, 0.14);
+            background: rgba(10, 17, 20, 0.9);
+            color: var(--text);
+            outline: none;
+        }
+
+        .mc-input:focus {
+            border-color: rgba(116, 191, 82, 0.7);
+            box-shadow: 0 0 0 3px rgba(116, 191, 82, 0.18);
+        }
+
+        .mc-select {
+            appearance: none;
+            padding: 10px 14px;
+            border: 2px solid rgba(255, 255, 255, 0.14);
+            background: rgba(10, 17, 20, 0.9);
+            color: var(--text);
+            outline: none;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .mc-select:focus {
+            border-color: rgba(116, 191, 82, 0.7);
+            box-shadow: 0 0 0 3px rgba(116, 191, 82, 0.18);
+        }
+
+        .mc-select option {
+            background: var(--bg-1);
+            color: var(--text);
+        }
+
+        .mc-button {
+            padding: 10px 18px;
+            border: none;
+            cursor: pointer;
+            color: #f8f6e2;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+            background: linear-gradient(180deg, var(--accent) 0%, var(--accent-2) 100%);
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.28), inset 0 2px 0 rgba(255,255,255,0.18), 0 8px 18px rgba(0,0,0,0.22);
+            transition: transform 120ms ease, filter 120ms ease;
+        }
+
+        .mc-button:hover:not(:disabled) { filter: brightness(1.05); transform: translateY(-1px); }
+        .mc-button:active:not(:disabled) { transform: translateY(1px); }
+        .mc-button:disabled { filter: grayscale(1); cursor: not-allowed; opacity: 0.7; }
+        .mc-button.secondary { background: linear-gradient(180deg, #6f7b82 0%, #505b63 100%); }
+        .mc-button.compact { padding: 8px 14px; font-size: 13px; }
+        .mc-button.danger { background: linear-gradient(180deg, var(--danger) 0%, #a13d2d 100%); }
+        .mc-button.small { padding: 6px 12px; font-size: 12px; }
+
+        .divider { height: 2px; background: var(--line); margin: 16px 0; }
+
+        /* 玩家列表 */
+        .player-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .player-list::-webkit-scrollbar { width: 8px; }
+        .player-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); }
+
+        .player-chip {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: var(--panel-soft);
+            font-size: 13px;
+            transition: border-color 120ms ease;
+        }
+
+        .player-chip:hover { border-color: rgba(116, 191, 82, 0.48); }
+
+        .player-chip .player-id { color: var(--muted); font-size: 11px; }
+
+        .player-id { margin-left: 5px; }
+
+        .player-chip .group-badge {
+            padding: 2px 6px;
+            font-size: 11px;
+            background: rgba(116, 191, 82, 0.2);
+            color: var(--accent);
+        }
+
+        .player-chip .no-group-badge {
+            padding: 2px 6px;
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--muted);
+        }
+
+        /* 分组列表 */
+        .group-card {
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            background: var(--panel-soft);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: transform 120ms ease, border-color 120ms ease;
+        }
+
+        .group-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(116, 191, 82, 0.48);
+        }
+
+        .group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .group-name { font-size: 18px; font-weight: bold; color: var(--accent); }
+        .group-id { color: var(--muted); font-size: 12px; }
+
+        .group-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .member-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 14px;
+        }
+
+        .member-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .member-meta { color: var(--muted); font-size: 12px; }
+
+        .groups-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 14px;
+        }
+
+        /* 内联编辑 */
+        .inline-edit {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .inline-edit input {
+            flex: 1;
+        }
+
+        /* 添加成员 */
+        .add-member-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .add-member-row select {
+            flex: 1;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            padding: 24px;
+            text-align: center;
+            border: 2px dashed rgba(255, 255, 255, 0.12);
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        /* 提示框 */
+        .mc-alert {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            min-width: 320px;
+            max-width: 600px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 18px;
+            border-left: 4px solid var(--accent);
+            animation: slideIn 0.3s ease forwards;
+            pointer-events: auto;
+        }
+
+        .mc-alert.alert-danger { border-left-color: var(--danger); }
+        .mc-alert.alert-warning { border-left-color: #e5b567; }
+
+        /* 登录遮罩 */
+        .login-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.82);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            backdrop-filter: blur(6px);
+        }
+
+        .login-box {
+            width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .login-box .section-title {
+            margin: 0;
+            justify-content: center;
+        }
+
+        .login-error {
+            color: var(--danger);
+            text-align: center;
+            font-size: 13px;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-label { color: var(--muted); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="app" v-cloak>
+    <!-- 全局提示框 (fixed) -->
+    <div v-if="alert.show" class="panel-card mc-alert" :class="'alert-' + alert.type">
+        <span>{{ alert.message }}</span>
+        <button class="mc-button secondary compact" @click="alert.show = false">关闭</button>
+    </div>
+
+    <!-- 登录遮罩 -->
+    <div v-if="!isAuthenticated" class="login-overlay">
+        <div class="login-box panel-card">
+            <h2 class="section-title">🔐 管理员登录</h2>
+            <div class="form-row">
+                <label class="form-label">密码</label>
+                <input type="password" class="mc-input" v-model="loginPassword" @keyup.enter="login" placeholder="请输入管理员密码">
+            </div>
+            <button class="mc-button" @click="login" :disabled="!loginPassword || isLoggingIn">
+                {{ isLoggingIn ? '验证中...' : '登录' }}
+            </button>
+            <p v-if="loginError" class="login-error">{{ loginError }}</p>
+        </div>
+    </div>
+
+    <div class="app-shell" v-if="isAuthenticated">
+    <!-- 导航栏 -->
+    <header class="app-header">
+        <div class="header-brand">
+            <h1 class="brand-title">🛡️ 管理员面板</h1>
+            <p class="brand-subtitle">知春CTF Administration Panel</p>
+        </div>
+        <button class="mc-button secondary compact" @click="logout" title="退出登录">🚪 退出</button>
+    </header>
+
+    <!-- 白名单控制 -->
+    <div class="panel-card">
+        <div class="whitelist-bar">
+            <div class="whitelist-status">
+                <span class="status-dot" :class="whitelistEnabled ? 'on' : 'off'"></span>
+                <span>白名单模式：</span>
+                <strong>{{ whitelistEnabled ? '已开启' : '已关闭' }}</strong>
+            </div>
+            <button
+                class="toggle-btn"
+                :class="whitelistEnabled ? 'disable' : 'enable'"
+                @click="toggleWhitelist"
+            >
+                {{ whitelistEnabled ? '关闭白名单' : '开启白名单' }}
+            </button>
+        </div>
+    </div>
+
+    <div class="two-col">
+        <!-- 左侧：玩家列表 -->
+        <div class="panel-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 class="section-title" style="margin: 0;">👥 所有玩家 ({{ players.length }})</h2>
+                <div style="display: flex; gap: 6px;">
+                    <button class="mc-button compact" @click="showAddPlayer = true" v-if="!showAddPlayer">➕ 新增玩家</button>
+                    <button class="mc-button secondary compact" @click="showAddPlayer = false" v-else>取消</button>
+                </div>
+            </div>
+
+            <!-- 新增玩家表单 -->
+            <div v-if="showAddPlayer" style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+                <input type="text" class="mc-input" v-model="newPlayerId" placeholder="玩家 ID" style="flex: 1; min-width: 120px;">
+                <input type="text" class="mc-input" v-model="newPlayerName" placeholder="玩家名称" style="flex: 1; min-width: 120px;">
+                <input type="text" class="mc-input" v-model="newPlayerPassword" placeholder="密码" @keyup.enter="addPlayer" style="flex: 1; min-width: 120px;">
+                <button class="mc-button compact" @click="addPlayer" :disabled="!newPlayerId.trim() || !newPlayerName.trim()">添加</button>
+            </div>
+
+            <div v-if="players.length === 0" class="empty-state">
+                暂无玩家数据
+            </div>
+            <div class="player-list" v-else>
+                <div class="player-chip" v-for="player in players" :key="player.id" style="flex-wrap: wrap; gap: 6px;">
+                    <div style="flex: 1; min-width: 140px;">
+                        <template v-if="editingPlayer !== player.id">
+                            <div>👤 {{ player.name }} <span class="player-id">ID: {{ player.id }}</span></div>
+                            <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">🔑 {{ player.password || '(未设置)' }}</div>
+                        </template>
+                        <div v-else class="inline-edit" style="flex-wrap: wrap; gap: 4px;">
+                            <input type="text" class="mc-input" v-model="editPlayerName" placeholder="新名称" @keyup.enter="savePlayerRename(player.id)" style="font-size: 13px; padding: 4px 8px; width: 100%;">
+                            <input type="text" class="mc-input" v-model="editPlayerPassword" placeholder="新密码" style="font-size: 13px; padding: 4px 8px; width: 100%;">
+                            <button class="mc-button small" @click="savePlayerEdit(player.id)">✓</button>
+                            <button class="mc-button secondary small" @click="editingPlayer = null">✕</button>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span v-if="getPlayerGroup(player.id)" class="group-badge">{{ getPlayerGroup(player.id) }}</span>
+                        <span v-else class="no-group-badge">未分组</span>
+                        <button class="mc-button secondary small" @click="startPlayerRename(player)" v-if="editingPlayer !== player.id" title="重命名">✏</button>
+                        <button class="mc-button danger small" @click="deletePlayer(player)" title="删除">✕</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：新增分组 -->
+        <div class="panel-card">
+            <h2 class="section-title">➕ 新增分组</h2>
+            <form @submit.prevent="createGroup" style="display: flex; flex-direction: column; gap: 12px;">
+                <div class="form-row">
+                    <label class="form-label">分组名称</label>
+                    <input type="text" class="mc-input" v-model="newGroup.name" placeholder="请输入分组名称" required>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">添加成员</label>
+                    <div v-for="(member, idx) in newGroup.members" :key="idx" style="display: flex; gap: 6px; margin-bottom: 6px;">
+                        <select class="mc-select" v-model="newGroup.members[idx]">
+                            <option value="">-- 选择玩家 --</option>
+                            <option v-for="p in ungroupedPlayers" :value="p.name" :key="p.id">{{ p.name }}</option>
+                        </select>
+                        <button type="button" class="mc-button danger small" @click="newGroup.members.splice(idx, 1)" v-if="newGroup.members.length > 1">✕</button>
+                    </div>
+                    <button type="button" class="mc-button secondary compact" @click="newGroup.members.push('')">+ 添加成员位</button>
+                </div>
+                <button type="submit" class="mc-button" :disabled="isSubmitting">
+                    {{ isSubmitting ? '创建中...' : '创建分组' }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 分组管理 -->
+    <div class="panel-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 class="section-title" style="margin: 0;">🏆 分组管理 ({{ groups.length }})</h2>
+            <button class="mc-button secondary compact" @click="fetchAll">刷新数据</button>
+        </div>
+
+        <div v-if="groups.length === 0" class="empty-state">
+            暂无分组
+        </div>
+
+        <div class="groups-grid" v-else>
+            <div class="group-card" v-for="group in groups" :key="group.id">
+                <div class="group-header">
+                    <div>
+                        <span class="group-id">#{{ group.id }}</span>
+                        <span class="group-name" v-if="editingGroup !== group.id"> {{ group.name }}</span>
+                        <div v-else class="inline-edit">
+                            <input type="text" class="mc-input" v-model="editName" @keyup.enter="saveRename(group.id)" style="font-size: 14px;">
+                            <button class="mc-button small" @click="saveRename(group.id)">保存</button>
+                            <button class="mc-button secondary small" @click="editingGroup = null">取消</button>
+                        </div>
+                    </div>
+                    <div class="group-actions">
+                        <button class="mc-button secondary compact" @click="startRename(group)" v-if="editingGroup !== group.id">重命名</button>
+                        <button class="mc-button danger compact" @click="deleteGroup(group)">删除分组</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <div class="member-row" v-for="player in group.players" :key="player.id">
+                        <div class="member-info">
+                            <span>👤 {{ player.name }}</span>
+                            <span class="member-meta">ID: {{ player.id }}</span>
+                        </div>
+                        <button class="mc-button danger small" @click="removeMember(group.id, player.id)">移除</button>
+                    </div>
+                    <div v-if="group.players.length === 0" style="color: var(--muted); text-align: center; padding: 8px; font-size: 13px;">
+                        该分组暂无成员
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="add-member-row">
+                    <select class="mc-select" v-model="group.addMemberName">
+                        <option value="">-- 选择玩家加入 --</option>
+                        <option v-for="p in getUngroupedPlayersForGroup()" :value="p.name" :key="p.id">{{ p.name }}</option>
+                    </select>
+                    <button class="mc-button compact" @click="addMember(group)" :disabled="!group.addMemberName">添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div><!-- end app-shell -->
+</div><!-- end #app -->
+
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+
+createApp({
+    setup() {
+        const isAuthenticated = ref(false);
+        const isLoggingIn = ref(false);
+        const loginPassword = ref(localStorage.getItem('admin_password') || '');
+        const loginError = ref('');
+        const players = ref([]);
+        const groups = ref([]);
+        const whitelistEnabled = ref(false);
+        const isSubmitting = ref(false);
+        const editingGroup = ref(null);
+        const editName = ref('');
+        const showAddPlayer = ref(false);
+        const newPlayerId = ref('');
+        const newPlayerName = ref('');
+        const newPlayerPassword = ref('');
+        const editingPlayer = ref(null);
+        const editPlayerName = ref('');
+        const editPlayerPassword = ref('');
+
+        // Axios interceptor: add password header to all requests
+        axios.interceptors.request.use(config => {
+            const pw = localStorage.getItem('admin_password');
+            if (pw) config.headers['X-Admin-Password'] = pw;
+            return config;
+        });
+
+        // Auto-logout on 401
+        axios.interceptors.response.use(
+            response => response,
+            error => {
+                if (error.response?.status === 401) {
+                    isAuthenticated.value = false;
+                    localStorage.removeItem('admin_password');
+                    loginError.value = '认证已过期，请重新登录';
+                }
+                return Promise.reject(error);
+            }
+        );
+
+        const login = async () => {
+            loginError.value = '';
+            isLoggingIn.value = true;
+            try {
+                await axios.post('/admin/auth', { password: loginPassword.value });
+                localStorage.setItem('admin_password', loginPassword.value);
+                isAuthenticated.value = true;
+                fetchAll();
+            } catch (error) {
+                if (error.response?.status === 401) {
+                    loginError.value = '密码错误';
+                } else {
+                    loginError.value = '连接失败: ' + error.message;
+                }
+                localStorage.removeItem('admin_password');
+            } finally {
+                isLoggingIn.value = false;
+            }
+        };
+
+        const logout = () => {
+            localStorage.removeItem('admin_password');
+            loginPassword.value = '';
+            isAuthenticated.value = false;
+        };
+
+        const newGroup = reactive({
+            name: '',
+            members: ['']
+        });
+
+        const alert = reactive({
+            show: false,
+            type: 'success',
+            message: ''
+        });
+
+        const showAlert = (message, type = 'success') => {
+            alert.message = message;
+            alert.type = type;
+            alert.show = true;
+            setTimeout(() => { alert.show = false; }, 5000);
+        };
+
+        // Computed: ungrouped players
+        const ungroupedPlayers = computed(() => {
+            const groupedIds = new Set(groups.value.flatMap(g => g.players.map(p => p.id)));
+            return players.value.filter(p => !groupedIds.has(p.id));
+        });
+
+        const getPlayerGroup = (playerId) => {
+            const g = groups.value.find(g => g.players.some(p => p.id === playerId));
+            return g ? g.name : null;
+        };
+
+        const getUngroupedPlayersForGroup = () => {
+            return ungroupedPlayers.value;
+        };
+
+        // API calls
+        const fetchAll = async () => {
+            try {
+                const [playersRes, groupsRes, whitelistRes] = await Promise.all([
+                    axios.get('/admin/players'),
+                    axios.get('/admin/groups'),
+                    axios.get('/admin/whitelist')
+                ]);
+                players.value = playersRes.data;
+                groups.value = groupsRes.data.map(g => ({ ...g, addMemberName: '' }));
+                whitelistEnabled.value = whitelistRes.data.enabled;
+            } catch (error) {
+                showAlert('加载数据失败: ' + (error.response?.data || error.message), 'danger');
+            }
+        };
+
+        const toggleWhitelist = async () => {
+            try {
+                const newState = !whitelistEnabled.value;
+                await axios.post('/admin/whitelist/set', { enabled: newState });
+                whitelistEnabled.value = newState;
+                showAlert('白名单模式已' + (newState ? '开启' : '关闭'));
+            } catch (error) {
+                showAlert('操作失败: ' + (error.response?.data || error.message), 'danger');
+            }
+        };
+
+        const createGroup = async () => {
+            const name = newGroup.name.trim();
+            if (!name) { showAlert('请输入分组名称', 'warning'); return; }
+
+            const memberNames = newGroup.members.filter(m => m).map(m => m.trim());
+            isSubmitting.value = true;
+            try {
+                await axios.post('/admin/groups/create', { name, players: memberNames });
+                showAlert(`分组 "${name}" 创建成功！`);
+                newGroup.name = '';
+                newGroup.members = [''];
+                fetchAll();
+            } catch (error) {
+                showAlert('创建失败: ' + (error.response?.data || error.message), 'danger');
+            } finally {
+                isSubmitting.value = false;
+            }
+        };
+
+        const deleteGroup = async (group) => {
+            if (!confirm(`确定要删除分组 "${group.name}" 吗？`)) return;
+            try {
+                await axios.post('/admin/groups/delete', { id: group.id });
+                showAlert(`分组 "${group.name}" 已删除`);
+                fetchAll();
+            } catch (error) {
+                showAlert('删除失败: ' + (error.response?.data || error.message), 'danger');
+            }
+        };
+
+        const startRename = (group) => {
+            editingGroup.value = group.id;
+            editName.value = group.name;
+        };
+
+        const saveRename = async (groupId) => {
+            const name = editName.value.trim();
+            if (!name) { showAlert('名称不能为空', 'warning'); return; }
+            try {
+                await axios.post('/admin/groups/rename', { id: groupId, name });
+                showAlert('重命名成功');
+                editingGroup.value = null;
+                fetchAll();
+            } catch (error) {
+                showAlert('重命名失败: ' + (error.response?.data || error.message), 'danger');
+            }
+        };
+
+        const addMember = async (group) => {
+            if (!group.addMemberName) return;
+            try {
+                await axios.post('/admin/groups/member/add', { groupId: group.id, playerName: group.addMemberName });
+                showAlert(`已将 ${group.addMemberName} 添加到分组`);
+                fetchAll();
+            } catch (error) {
+                showAlert('添加失败: ' + (error.response?.data || error.message), 'danger');
+            }
+        };
+
+        const removeMember = async (groupId, playerId) => {
+            try {
+                await axios.post('/admin/groups/member/remove', { groupId, playerId });
+                showAlert('已移除成员');
+                fetchAll();
+            } catch (error) {
+                showAlert('移除失败: ' + (error.response?.data || error.message), 'danger');
+            }
+        };
+
+        // Player management
+        const addPlayer = async () => {
+            const id = newPlayerId.value.trim();
+            const name = newPlayerName.value.trim();
+            const password = newPlayerPassword.value.trim();
+            if (!id) { showAlert('请输入玩家 ID', 'warning'); return; }
+            if (!name) { showAlert('请输入玩家名称', 'warning'); return; }
+            try {
+                await axios.post('/admin/players/create', { id, name, password });
+                showAlert(`玩家 "${name}" 添加成功`);
+                newPlayerId.value = '';
+                newPlayerName.value = '';
+                newPlayerPassword.value = '';
+                showAddPlayer.value = false;
+                fetchAll();
+            } catch (error) {
+                showAlert('添加失败: ' + (error.response?.data || error.message), 'danger');
+            }
+        };
+
+        const deletePlayer = async (player) => {
+            if (!confirm(`确定要删除玩家 "${player.name}" 吗？该操作会同时将其从所在分组中移除。`)) return;
+            try {
+                await axios.post('/admin/players/delete', { id: player.id });
+                showAlert(`玩家 "${player.name}" 已删除`);
+                fetchAll();
+            } catch (error) {
+                showAlert('删除失败: ' + (error.response?.data || error.message), 'danger');
+            }
+        };
+
+        const startPlayerRename = (player) => {
+            editingPlayer.value = player.id;
+            editPlayerName.value = player.name;
+            editPlayerPassword.value = player.password;
+        };
+
+        const savePlayerEdit = async (playerId) => {
+            const name = editPlayerName.value.trim();
+            const password = editPlayerPassword.value;
+            if (!name) { showAlert('名称不能为空', 'warning'); return; }
+            try {
+                if (name !== players.value.find(p => p.id === playerId)?.name) {
+                    await axios.post('/admin/players/rename', { id: playerId, name });
+                }
+                await axios.post('/admin/players/password', { id: playerId, password });
+                showAlert('更新成功');
+                editingPlayer.value = null;
+                fetchAll();
+            } catch (error) {
+                showAlert('更新失败: ' + (error.response?.data || error.message), 'danger');
+            }
+        };
+
+        onMounted(async () => {
+            const saved = localStorage.getItem('admin_password');
+            if (saved) {
+                try {
+                    await axios.post('/admin/auth', { password: saved });
+                    isAuthenticated.value = true;
+                    fetchAll();
+                } catch {
+                    localStorage.removeItem('admin_password');
+                    loginPassword.value = '';
+                }
+            }
+        });
+
+        return {
+            isAuthenticated, isLoggingIn, loginPassword, loginError,
+            players, groups, whitelistEnabled, isSubmitting,
+            editingGroup, editName, newGroup, alert,
+            showAddPlayer, newPlayerId, newPlayerName, newPlayerPassword, editingPlayer, editPlayerName, editPlayerPassword,
+            ungroupedPlayers, getPlayerGroup, getUngroupedPlayersForGroup,
+            fetchAll, toggleWhitelist, createGroup, deleteGroup,
+            startRename, saveRename, addMember, removeMember, showAlert,
+            addPlayer, deletePlayer, startPlayerRename, savePlayerEdit,
+            login, logout
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

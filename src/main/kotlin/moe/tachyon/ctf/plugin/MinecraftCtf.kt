@@ -1,6 +1,8 @@
 package moe.tachyon.ctf.plugin
 
 import com.sun.net.httpserver.HttpServer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import moe.tachyon.ctf.plugin.web.setupServer
 import org.bukkit.Bukkit
 import org.bukkit.World
@@ -23,7 +25,28 @@ object MinecraftCtfPlugin: Plugin()
     var matchTask: PlatformExecutor.PlatformTask? = null
     var trekTask: PlatformExecutor.PlatformTask? = null
 
-    val server: HttpServer by lazy { HttpServer.create(InetSocketAddress(8001), 0) }
+    val config by lazy()
+    {
+        val file = BukkitPlugin.getInstance().dataFolder.resolve("config.json")
+        if (!file.exists())
+        {
+            file.parentFile?.mkdirs()
+            file.writeText(Json.encodeToString(PluginConfig()))
+            return@lazy PluginConfig()
+        }
+        else
+        {
+            runCatching()
+            {
+                Json.decodeFromString<PluginConfig>(file.readText())
+            }.getOrElse()
+            {
+                file.writeText(Json.encodeToString(PluginConfig()))
+                return@lazy PluginConfig()
+            }
+        }
+    }
+    private val server: HttpServer by lazy { HttpServer.create(InetSocketAddress(config.webPort), 0) }
     val mainWorld: World by lazy { Bukkit.getServer().worlds.first { it.environment == World.Environment.NORMAL } }
 
     override fun onEnable()
@@ -50,7 +73,7 @@ object MinecraftCtfPlugin: Plugin()
             }
         }
 
-        setupServer()
+        server.setupServer()
 
         info("Successfully running Minecraft-CTF-Plugin!")
     }
@@ -70,6 +93,12 @@ object MinecraftCtfPlugin: Plugin()
         server.stop(0)
     }
 }
+
+@Serializable
+data class PluginConfig(
+    val webPort: Int = 8001,
+    val adminPassword: String = "password123",
+)
 
 data class PracticeMode(
     val name: String = "Practice_" + random(0, 10000),
