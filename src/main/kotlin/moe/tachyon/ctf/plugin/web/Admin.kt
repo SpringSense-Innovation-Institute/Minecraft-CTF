@@ -57,7 +57,7 @@ fun HttpServer.admin()
                 exchange.responseBody.close()
             }
         }
-        catch (e: Throwable)
+        catch (_: Throwable)
         {
             exchange.sendResponseHeaders(400, -1)
             exchange.responseBody.close()

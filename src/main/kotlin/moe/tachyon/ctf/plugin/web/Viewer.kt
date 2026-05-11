@@ -8,7 +8,6 @@ import moe.tachyon.ctf.plugin.MinecraftCtfPlugin
 import moe.tachyon.ctf.plugin.PlayerTeam
 import moe.tachyon.ctf.plugin.getGameWorlds
 import org.bukkit.Bukkit
-import org.intellij.lang.annotations.Language
 import taboolib.common.platform.function.submit
 import java.io.IOException
 

@@ -426,7 +426,7 @@ private class Replayer(
 fun register111()
 {
     simpleCommand("cnm", permissionDefault = PermissionDefault.TRUE)
-    { sender, _ ->
+    { _, _ ->
         val file = recordsFolder.listFiles()?.firstOrNull { it.isFile && it.extension == "dat" } ?: return@simpleCommand
         Replayer(RecordReader(file), 1.0, 0).use()
         { replayer ->

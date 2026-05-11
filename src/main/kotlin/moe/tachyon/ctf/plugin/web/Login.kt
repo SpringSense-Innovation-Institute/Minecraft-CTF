@@ -56,7 +56,7 @@ fun HttpServer.login()
             os.write(response)
             os.close()
         }
-        catch (e: Throwable)
+        catch (_: Throwable)
         {
             exchange.sendResponseHeaders(400, -1)
             exchange.responseBody.close()

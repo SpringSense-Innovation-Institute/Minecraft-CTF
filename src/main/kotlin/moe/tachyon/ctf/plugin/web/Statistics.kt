@@ -6,7 +6,6 @@ import moe.tachyon.ctf.plugin.MinecraftCtfPlugin
 import moe.tachyon.ctf.plugin.getStatisticData
 import moe.tachyon.ctf.plugin.getStatisticFiles
 import moe.tachyon.ctf.plugin.practiceMode
-import org.intellij.lang.annotations.Language
 
 fun HttpServer.statistics()
 {

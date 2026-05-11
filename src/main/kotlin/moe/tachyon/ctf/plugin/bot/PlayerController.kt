@@ -60,6 +60,7 @@ abstract class BotNMSHandler
     }
 }
 
+@Suppress("unused")
 class BotNMSHandlerImpl: BotNMSHandler()
 {
     override fun spawnFakePlayer(world: World, name: String, location: Location): Player
