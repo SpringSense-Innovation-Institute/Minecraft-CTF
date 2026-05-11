@@ -1,10 +1,11 @@
 package moe.tachyon.ctf.plugin
 
+import moe.tachyon.ctf.plugin.GameRecord.Companion.box
 import org.bukkit.*
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.MushroomCow
+import org.bukkit.entity.Silverfish
 import org.bukkit.event.player.PlayerMoveEvent
-import org.bukkit.util.BoundingBox
 import taboolib.common.platform.function.submit
 import taboolib.common.platform.service.PlatformExecutor
 import taboolib.module.chat.colored
@@ -484,9 +485,15 @@ class GameWorld(
 
     fun getCows(): List<Pair<Double, Double>>
     {
-        val box = BoundingBox(-24.0, -10.0, -36.0, 24.0, 10.0, 36.0)
         val world = bukkitWorld() ?: return emptyList()
         val res = world.getNearbyEntities(box).filterIsInstance<MushroomCow>().map { Pair(it.location.x, it.location.z) }
+        return res
+    }
+
+    fun getSilverfish(): List<Pair<Double, Double>>
+    {
+        val world = bukkitWorld() ?: return emptyList()
+        val res = world.getNearbyEntities(box).filterIsInstance<Silverfish>().map { Pair(it.location.x, it.location.z) }
         return res
     }
 
