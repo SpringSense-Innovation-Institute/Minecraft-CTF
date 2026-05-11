@@ -19,14 +19,31 @@ import taboolib.common.platform.event.EventPriority
 import taboolib.common.platform.event.SubscribeEvent
 import java.util.*
 
+/**
+ * 线程安全的未登录玩家集合
+ */
 private val blockedUsers = Collections.synchronizedSet(mutableSetOf<String>())
 
+/**
+ * 监听玩家加入事件，如果玩家是管理员，则将其加入到未登录玩家集合中
+ * 
+ * @param event 玩家加入事件
+ * @see PlayerJoinEvent
+ * @see blockedUsers
+ */
 @SubscribeEvent(ignoreCancelled = true)
 private fun onPlayerJoin(event: PlayerJoinEvent)
 {
     if (event.player.isOp) blockedUsers += event.player.name
 }
 
+/**
+ * 拦截未登录玩家的操作
+ * 
+ * @param player 玩家
+ * @param event 事件
+ * @see blockedUsers
+ */
 @Suppress("NOTHING_TO_INLINE")
 private inline fun check(player: Player, event: Cancellable)
 {
@@ -36,6 +53,13 @@ private inline fun check(player: Player, event: Cancellable)
     event.isCancelled = true
 }
 
+/**
+ * 监听玩家命令，如果命令前缀是 /login，则不拦截
+ * 
+ * @param event 玩家命令
+ * @see PlayerCommandPreprocessEvent
+ * @see blockedUsers
+ */
 @SubscribeEvent(priority = EventPriority.LOWEST, ignoreCancelled = true)
 private fun onPlayerCommandPreprocess(event: PlayerCommandPreprocessEvent)
 {
@@ -44,14 +68,35 @@ private fun onPlayerCommandPreprocess(event: PlayerCommandPreprocessEvent)
     check(event.player, event)
 }
 
+/**
+ * 监听玩家聊天，拦截未登录玩家的聊天
+ * 
+ * @param event 玩家聊天
+ * @see AsyncPlayerChatEvent
+ * @see blockedUsers
+ */
 @SubscribeEvent(priority = EventPriority.LOWEST, ignoreCancelled = true)
 fun onPlayerChat(event: AsyncPlayerChatEvent) =
     check(event.player, event)
 
+/**
+ * 监听玩家交互，拦截未登录玩家的交互
+ * 
+ * @param event 玩家交互
+ * @see PlayerInteractEvent
+ * @see blockedUsers
+ */
 @SubscribeEvent(priority = EventPriority.LOWEST, ignoreCancelled = true)
 fun onPlayerInteract(event: PlayerInteractEvent) =
     check(event.player, event)
 
+/**
+ * 监听实体伤害，拦截未登录玩家造成的伤害
+ * 
+ * @param event 实体伤害
+ * @see EntityDamageByEntityEvent
+ * @see blockedUsers
+ */
 @SubscribeEvent(priority = EventPriority.LOWEST, ignoreCancelled = true)
 fun onEntityDamageByEntity(event: EntityDamageByEntityEvent)
 {
@@ -59,10 +104,24 @@ fun onEntityDamageByEntity(event: EntityDamageByEntityEvent)
     check(event.damager as Player, event)
 }
 
+/**
+ * 监听受到伤害，拦截未登录玩家受到的伤害
+ * 
+ * @param event 实体伤害
+ * @see EntityDamageEvent
+ * @see blockedUsers
+ */
 @SubscribeEvent(priority = EventPriority.LOWEST, ignoreCancelled = true)
 fun onEntityDamage(event: EntityDamageEvent): Unit =
     check(event.entity as? Player ?: return, event)
 
+/**
+ * 监听玩家传送，拦截未登录玩家非插件传送
+ * 
+ * @param event 玩家传送
+ * @see PlayerTeleportEvent
+ * @see blockedUsers
+ */
 @SubscribeEvent(priority = EventPriority.LOWEST, ignoreCancelled = true)
 fun onPlayerTeleport(event: PlayerTeleportEvent)
 {
@@ -70,14 +129,35 @@ fun onPlayerTeleport(event: PlayerTeleportEvent)
         check(event.player, event)
 }
 
+/**
+ * 监听玩家丢弃物品，拦截未登录玩家丢弃物品
+ * 
+ * @param event 玩家丢弃物品
+ * @see PlayerDropItemEvent
+ * @see blockedUsers
+ */
 @SubscribeEvent(priority = EventPriority.LOWEST, ignoreCancelled = true)
 fun onPlayerDropItem(event: PlayerDropItemEvent) =
     check(event.player, event)
 
+/**
+ * 监听实体捡起物品，拦截未登录玩家捡起物品
+ * 
+ * @param event 实体捡起物品
+ * @see EntityPickupItemEvent
+ * @see blockedUsers
+ */
 @SubscribeEvent(priority = EventPriority.LOWEST, ignoreCancelled = true)
 fun onEntityPickupItem(event: EntityPickupItemEvent): Unit =
     check(event.entity as? Player ?: return, event)
 
+/**
+ * 监听玩家移动，拦截未登录玩家的跨方块移动，不拦截视角移动
+ * 
+ * @param event 玩家移动
+ * @see PlayerMoveEvent
+ * @see blockedUsers
+ */
 @SubscribeEvent(priority = EventPriority.LOWEST, ignoreCancelled = true)
 fun onPlayerMove(event: PlayerMoveEvent)
 {
@@ -91,10 +171,24 @@ fun onPlayerMove(event: PlayerMoveEvent)
     check(event.player, event)
 }
 
+/**
+ * 监听玩家打开菜单，拦截未登录玩家打开菜单
+ * 
+ * @param event 打开菜单
+ * @see InventoryOpenEvent
+ * @see blockedUsers
+ */
 @SubscribeEvent(priority = EventPriority.LOWEST, ignoreCancelled = true)
 fun onPlayerOpenMenu(event: InventoryOpenEvent): Unit =
     check(event.player as? Player ?: return, event)
 
+
+/**
+ * 注册登录命令（/login <password>），默认所有玩家都可以使用命令，密码正确则将玩家从未登录玩家集合中移除
+ * 
+ * @see simpleCommand
+ * @see blockedUsers
+ */
 @Awake(LifeCycle.ENABLE)
 private fun registerAuthListeners()
 {
