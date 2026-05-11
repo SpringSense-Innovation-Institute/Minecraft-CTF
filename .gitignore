@@ -3,6 +3,7 @@
 build
 .kotlin
 bin
+**/.DS_Store
 
 ### VSCode ###
 .vscode
@@ -13,3 +14,4 @@ bin
 
 ### Cursor ###
 .cursor
+dev-server-purpur-1.21.11/*
