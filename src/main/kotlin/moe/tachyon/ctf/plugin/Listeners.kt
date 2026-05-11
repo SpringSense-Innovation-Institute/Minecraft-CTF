@@ -9,6 +9,7 @@ import org.bukkit.event.block.Action
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPhysicsEvent
 import org.bukkit.event.block.BlockPlaceEvent
+import org.bukkit.event.entity.EntityCombustEvent
 import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.EntityInteractEvent
 import org.bukkit.event.entity.ItemSpawnEvent
@@ -241,8 +242,14 @@ private fun onPlayerPlaceBlock(event: BlockPlaceEvent)
 }
 
 @SubscribeEvent(ignoreCancelled = true)
-fun onKickSpam(event: PlayerKickEvent)
+private fun onKickSpam(event: PlayerKickEvent)
 {
     if ("spam" in event.reason.lowercase() || "spam" in event.leaveMessage.lowercase())
         event.isCancelled = true
+}
+
+@SubscribeEvent(ignoreCancelled = true)
+private fun onCombust(event: EntityCombustEvent)
+{
+    event.isCancelled = true
 }
