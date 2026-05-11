@@ -20,6 +20,7 @@ import taboolib.module.nms.ItemTag
 import taboolib.module.nms.getItemTag
 import taboolib.module.nms.setItemTag
 import taboolib.platform.util.isNotAir
+import java.io.Closeable
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
@@ -144,7 +145,6 @@ class GameRecord(
             val bukkitWorld = world.bukkitWorld()
             if (tick == null || bukkitWorld == null)
             {
-
                 recordReader.close()
                 this@submit.cancel()
                 entityPool.forEach { it.value.remove() }
@@ -261,7 +261,7 @@ data class BlockStatus(
 class RecordWriter(
     val file: File,
     val period: Long,
-): AutoCloseable
+): AutoCloseable, Closeable
 {
     companion object
     {
@@ -330,7 +330,7 @@ class RecordWriter(
 
 class RecordReader(
     val file: File,
-): AutoCloseable
+): AutoCloseable, Closeable
 {
     val period by lazy()
     {

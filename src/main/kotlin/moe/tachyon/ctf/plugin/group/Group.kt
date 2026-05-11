@@ -8,6 +8,9 @@ import taboolib.common.platform.event.SubscribeEvent
 import taboolib.module.chat.colored
 import taboolib.platform.BukkitPlugin
 
+private const val GROUP_FILE_NAME = "groups.json"
+private const val PLAYER_FILE_NAME = "players.json"
+
 @Serializable
 data class GroupInfo(
     val id: Int,
@@ -63,7 +66,8 @@ fun createGroup(
     return group.id
 }
 
-private val groupFile get() = BukkitPlugin.getInstance().dataFolder.resolve("groups.json")
+private val groupFile get() = BukkitPlugin.getInstance().dataFolder.resolve(GROUP_FILE_NAME)
+private val playerFile get() = BukkitPlugin.getInstance().dataFolder.resolve(PLAYER_FILE_NAME)
 
 fun getGroups(): List<GroupInfo> = synchronized(lock)
 {
@@ -83,16 +87,14 @@ fun saveGroups(groups: List<GroupInfo>) = synchronized(lock)
 
 fun getAllPlayers(): List<GroupInfo.PlayerInfo>
 {
-    val file = BukkitPlugin.getInstance().dataFolder.resolve("players.json")
-    if (!file.exists()) return emptyList()
-    return runCatching { Json.decodeFromString<List<GroupInfo.PlayerInfo>>(file.readText()) }.getOrNull() ?: emptyList()
+    if (!playerFile.exists()) return emptyList()
+    return runCatching { Json.decodeFromString<List<GroupInfo.PlayerInfo>>(playerFile.readText()) }.getOrNull() ?: emptyList()
 }
 
 private fun saveAllPlayers(players: List<GroupInfo.PlayerInfo>)
 {
-    val file = BukkitPlugin.getInstance().dataFolder.resolve("players.json")
-    if (!file.parentFile.exists()) file.parentFile.mkdirs()
-    file.writeText(Json.encodeToString(players))
+    if (!playerFile.parentFile.exists()) playerFile.parentFile.mkdirs()
+    playerFile.writeText(Json.encodeToString(players))
 }
 
 fun addPlayer(id: String, name: String, password: String = ""): GroupInfo.PlayerInfo = synchronized(lock)

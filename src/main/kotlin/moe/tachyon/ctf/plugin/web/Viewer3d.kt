@@ -16,12 +16,10 @@ import org.bukkit.event.block.BlockPhysicsEvent
 import org.bukkit.event.block.BlockPlaceEvent
 import taboolib.common.LifeCycle
 import taboolib.common.platform.Awake
-import taboolib.common.platform.ProxyPlayer
 import taboolib.common.platform.command.PermissionDefault
 import taboolib.common.platform.command.simpleCommand
 import taboolib.common.platform.event.EventPriority
 import taboolib.common.platform.event.SubscribeEvent
-import taboolib.common.platform.function.info
 import taboolib.common.platform.function.submit
 import taboolib.common5.util.encodeBase64
 import java.io.File
@@ -192,7 +190,6 @@ fun HttpServer.viewer3d()
             {
                 try
                 {
-                    info(pack)
                     val data = Zstd.compress(pack.toByteArray()).encodeBase64()
                     exchange.responseBody.write("data: $data\n\n".toByteArray())
                     exchange.responseBody.flush()
@@ -246,12 +243,14 @@ fun HttpServer.viewer3d()
                 catch (_: Throwable)
                 {
                     runCatching { exchange.responseBody.close() }
+                    runCatching { replayer.close() }
                     return@loop this@loop.cancel()
                 }
             }
             val tickData = replayer.readTickData() ?: run()
             {
                 runCatching { exchange.responseBody.close() }
+                runCatching { replayer.close() }
                 return@loop this@loop.cancel()
             }
 
@@ -265,6 +264,7 @@ fun HttpServer.viewer3d()
             catch (_: Throwable)
             {
                 runCatching { exchange.responseBody.close() }
+                runCatching { replayer.close() }
                 return@loop this@loop.cancel()
             }
         }
