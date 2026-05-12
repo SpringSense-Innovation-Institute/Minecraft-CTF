@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalAtomicApi::class)
+
 package moe.tachyon.ctf.plugin
 
 import org.bukkit.Bukkit
@@ -12,6 +14,10 @@ import org.bukkit.util.Vector
 import taboolib.common.util.randomDouble
 import taboolib.module.ai.*
 import taboolib.module.navigation.isWater
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.decrementAndFetch
+import kotlin.concurrent.atomics.incrementAndFetch
 import kotlin.random.Random
 
 fun GameWorld.clearMap()
@@ -174,8 +180,10 @@ fun GameWorld.generateMap()
 
     // 生成蠹虫
     count = 0
+    val bugCount = AtomicInt(0)
     generateSilverfish@while (count < playerCountPerGroup * 2)
     {
+        bugCount.incrementAndFetch()
         val x = (1..24).random() * if (count >= playerCountPerGroup) -1 else 1
         val z = (-36..36).random()
         val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
@@ -185,7 +193,7 @@ fun GameWorld.generateMap()
         val e = location.world!!.spawnEntity(location.add(0.0, 1.0, 0.0), EntityType.SILVERFISH) as Silverfish
         e.clearGoalAi()
         e.clearTargetAi()
-        e.addTargetAi(SilverfishAI(this, e), 1)
+        e.addTargetAi(SilverfishAI(this, e, bugCount), 1)
         count++
     }
 
@@ -289,29 +297,43 @@ private class CowAI(
 private class SilverfishAI(
     private val world: GameWorld,
     val bug: Silverfish,
+    val bugCount: AtomicInt,
 ): SimpleAi()
 {
-    override fun shouldExecute(): Boolean = world.gameStatus.inGame()
-    override fun continueExecute(): Boolean = world.gameStatus.inGame()
+    private var inPitcherPlant = false
+    override fun shouldExecute(): Boolean = world.gameStatus.inGame() && bug.isValid
+    override fun continueExecute(): Boolean = world.gameStatus.inGame() && bug.isValid
     override fun resetTask() = Unit
     override fun startTask() = Unit
     override fun updateTask()
     {
+        if (bug.location.block.type != Material.PITCHER_PLANT && inPitcherPlant) inPitcherPlant = false
+        if (bug.location.block.type == Material.PITCHER_PLANT && !inPitcherPlant)
+        {
+            inPitcherPlant = true
+            if (randomDouble() < 0.5 && bugCount.load() > 2)
+            {
+                bugCount.decrementAndFetch()
+                bug.remove()
+                return
+            }
+        }
+
         val target = world.getPlayers()
-                         .asSequence()
-                         .filter { world.getPlayerTeam(it) != PlayerTeam.NONE }
-                         .mapNotNull { Bukkit.getPlayer(it) }
-                         .map { it to it.location }
-                         .filter { it.second.world == bug.world }
-                         .filter { it.first.inventory.helmet != parasiticHelmet }
-                         .minByOrNull { it.second.distanceSquared(bug.location) } ?: return
+            .asSequence()
+            .filter { world.getPlayerTeam(it) != PlayerTeam.NONE }
+            .mapNotNull { Bukkit.getPlayer(it) }
+            .map { it to it.location.clone().apply { y = bug.location.y } }
+            .filter { it.second.world == bug.world }
+            .filter { it.first.inventory.helmet != parasiticHelmet }
+            .minByOrNull { it.second.distanceSquared(bug.location) } ?: return
 
         if (target.first.world != bug.world) return
 
-        bug.navigationMove(target.first, 0.9)
+        bug.navigationMove(target.first, 1.0)
 
-        if (target.second.distanceSquared(bug.location) < 2.0)
-            bug.velocity = Vector(target.second.x - bug.location.x, 0.0, target.second.z - bug.location.z).normalize().multiply(0.3)
+        if (target.second.distanceSquared(bug.location) < 2.5)
+            bug.velocity = Vector(target.second.x - bug.location.x, 0.0, target.second.z - bug.location.z).normalize().multiply(0.4)
         if (target.second.distanceSquared(bug.location) < 0.5)
             onPlayerParasitic(world, target.first)
     }
