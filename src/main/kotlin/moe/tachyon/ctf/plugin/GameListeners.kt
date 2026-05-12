@@ -180,6 +180,7 @@ fun onPlayerParasitic(world: GameWorld, player: Player)
         if (tick >= 260 || !player.isOnline || !world.gameStatus.inGame())
         {
             player.inventory.helmet = null
+            Bukkit.getPluginManager().callEvent(PlayerMoveEvent(player, player.location, player.location))
             player.walkSpeed = speed
             player.removePotionEffect(PotionEffectType.JUMP_BOOST)
             return@submit cancel()
