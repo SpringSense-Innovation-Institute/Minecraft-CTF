@@ -172,6 +172,12 @@ fun GameWorld.generateMap()
             continue@generateMushroom
         val e = location.world!!.spawnEntity(location.add(0.0, 1.0, 0.0), EntityType.MOOSHROOM) as MushroomCow
         e.variant = if (randomDouble() < 0.5) MushroomCow.Variant.BROWN else MushroomCow.Variant.RED
+
+        if (randomDouble() < 0.5)
+            e.setBaby()
+        else
+            e.setAdult()
+
         e.clearGoalAi()
         e.clearTargetAi()
         e.addTargetAi(CowAI(this, e), 1)
