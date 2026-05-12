@@ -218,21 +218,21 @@ fun HttpServer.viewer3d()
             exchange.sendResponseHeaders(404, -1)
             return@createContext
         }
-        exchange.sseHeaders()
 
         val recordReader = RecordReader(file)
 
         exchange.responseHeaders.add("X-Record-Length", recordReader.tickCount.toString())
+        exchange.sseHeaders()
 
         val replayer = Replayer(recordReader, speed, start)
 
-        var init = true
+        var init = 0
 
         submit(async = true, period = 1) loop@
         {
-            if (init)
+            if (init < 20)
             {
-                init = false
+                if (init++ != 0) return@loop
                 try
                 {
                     val initialData = replayer.initialData
@@ -377,7 +377,6 @@ private class Replayer(
             return TickData(emptyList(), entities)
 
         val blocks = mutableMapOf<Triple<Int, Int, Int>, String>()
-        var entities = emptyList<TickData.EntityData>()
         while (speedTest >= 1.0)
         {
             speedTest -= 1.0
