@@ -16,6 +16,7 @@ import org.bukkit.util.BoundingBox
 import org.bukkit.util.Vector
 import taboolib.common.platform.function.submit
 import taboolib.common.platform.service.PlatformExecutor
+import taboolib.common.util.randomDouble
 import taboolib.module.nms.ItemTag
 import taboolib.module.nms.getItemTag
 import taboolib.module.nms.setItemTag
@@ -167,19 +168,21 @@ class GameRecord(
                         EntityType.PLAYER ->
                         {
                             val player = bukkitWorld.spawnEntity(Location(bukkitWorld, 0.0, -64.0, 0.0), EntityType.ZOMBIE) as Zombie
+                            player.setBaby()
                             player.addPotionEffect(PotionEffect(PotionEffectType.FIRE_RESISTANCE, Int.MAX_VALUE, 0, false, false))
                             player.customName = it.name ?: "Unknown"
                             player.isCustomNameVisible = true
                             player
                         }
 
-                        EntityType.ITEM ->
-                        {
-                            val item = bukkitWorld.dropItem(Location(bukkitWorld, 0.0, -64.0, 0.0), it.helmet)
-                            item
-                        }
+                        EntityType.ITEM -> bukkitWorld.dropItem(Location(bukkitWorld, 0.0, -64.0, 0.0), it.helmet)
 
-                        else -> bukkitWorld.spawnEntity(Location(bukkitWorld, 0.0, -64.0, 0.0), type)
+                        else -> bukkitWorld.spawnEntity(Location(bukkitWorld, 0.0, -64.0, 0.0), type).also()
+                        {
+                            if (it is Ageable)
+                                if (randomDouble() < 0.5) it.setBaby()
+                                else it.setAdult()
+                        }
                     }
                     if (entity is LivingEntity)
                     {
