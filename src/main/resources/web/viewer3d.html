@@ -10,7 +10,7 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>Minecraft 3D Viewer</title>
-    <link rel="stylesheet" href="viewer3d.css?v=20260507d" />
+    <link rel="stylesheet" href="viewer3d.css?v=20260511atlasfilter1" />
   </head>
   <body>
     <div id="app" class="app-shell">
@@ -30,6 +30,16 @@
             <p>
               你可以直接进入当前 live 对局，也可以搜索并回放任意 record。
             </p>
+            <div class="hero-options">
+              <label class="hero-select" for="graphicsSelect">
+                <span class="hero-select-label">画质</span>
+                <select id="graphicsSelect" class="mc-select">
+                  <option value="basic">basic</option>
+                  <option value="quality">quality</option>
+                  <option value="super">super</option>
+                </select>
+              </label>
+            </div>
             <div class="hero-actions">
               <button id="startLiveButton" class="mc-button primary">
                 查看当前对局
@@ -86,13 +96,41 @@
             <label class="viewer-interpolation">
               <span class="viewer-interpolation-label">插帧</span>
               <select id="interpolationSelect" class="mc-select">
-                <option value="0">关闭</option>
-                <option value="1">1 帧</option>
-                <option value="2">2 帧</option>
-                <option value="3">3 帧</option>
+                <option value="0">basic</option>
+                <option value="1">performance</option>
+                <option value="2">balance</option>
+                <option value="3">quality</option>
+                <option value="4">super</option>
               </select>
             </label>
             <div id="worldStats" class="world-stats">Blocks 0 · Entities 0</div>
+          </div>
+
+          <div id="recordControls" class="viewer-recordbar hidden">
+            <button id="recordPauseButton" class="mc-button secondary compact" type="button">
+              Pause
+            </button>
+            <div class="record-progress-shell">
+              <input
+                id="recordProgress"
+                class="record-progress"
+                type="range"
+                min="0"
+                max="0"
+                step="1"
+                value="0"
+              />
+            </div>
+            <label class="viewer-record-speed">
+              <select id="recordSpeedSelect" class="mc-select">
+                <option value="0.5">0.5x</option>
+                <option value="1">1x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+                <option value="3">3x</option>
+                <option value="4">4x</option>
+              </select>
+            </label>
           </div>
 
         </section>
@@ -101,6 +139,16 @@
 
     <script src="/cdn/three.min.js"></script>
     <script src="/cdn/fzstd.min.js"></script>
-    <script src="viewer3d.js?v=20260511embed1"></script>
+    <script src="/cdn/viewer3d_libs/CopyShader.js"></script>
+    <script src="/cdn/viewer3d_libs/LuminosityHighPassShader.js"></script>
+    <script src="/cdn/viewer3d_libs/FXAAShader.js"></script>
+    <script src="/cdn/viewer3d_libs/SMAAShader.js"></script>
+    <script src="/cdn/viewer3d_libs/Pass.js"></script>
+    <script src="/cdn/viewer3d_libs/EffectComposer.js"></script>
+    <script src="/cdn/viewer3d_libs/RenderPass.js"></script>
+    <script src="/cdn/viewer3d_libs/ShaderPass.js"></script>
+    <script src="/cdn/viewer3d_libs/SMAAPass.js"></script>
+    <script src="/cdn/viewer3d_libs/UnrealBloomPass.js"></script>
+    <script src="viewer3d.js?v=20260511atlasfilter1"></script>
   </body>
 </html>

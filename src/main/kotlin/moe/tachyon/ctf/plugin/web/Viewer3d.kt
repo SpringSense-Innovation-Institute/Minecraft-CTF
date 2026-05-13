@@ -14,10 +14,6 @@ import org.bukkit.entity.Player
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPhysicsEvent
 import org.bukkit.event.block.BlockPlaceEvent
-import taboolib.common.LifeCycle
-import taboolib.common.platform.Awake
-import taboolib.common.platform.command.PermissionDefault
-import taboolib.common.platform.command.simpleCommand
 import taboolib.common.platform.event.EventPriority
 import taboolib.common.platform.event.SubscribeEvent
 import taboolib.common.platform.function.submit
@@ -274,8 +270,8 @@ fun HttpServer.viewer3d()
     { exchange ->
         val records = GameRecord.records().map { it.nameWithoutExtension }
         val data = Json.encodeToString(records)
-        exchange.sendResponseHeaders(200, data.toByteArray().size.toLong())
         exchange.responseHeaders.add("Content-Type", "application/json; charset=UTF-8")
+        exchange.sendResponseHeaders(200, data.toByteArray().size.toLong())
         exchange.responseBody.use { it.write(data.toByteArray()) }
     }
 }
