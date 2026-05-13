@@ -403,11 +403,7 @@ private fun HumanEntity.openReplaySettingsMenu()
 {
     submit(async = true)
     {
-        val items = recordsFolder.listFiles { file -> file.extension == "dat" }?.toList() ?: emptyList()
-
-        val allItems = (items.map { it.nameWithoutExtension to it.length() })
-            .distinctBy { it.first }
-            .sortedByDescending { it.first }
+        val allItems = GameRecord.records().map { it.nameWithoutExtension to it.length() }
 
         submit(async = false)
         {

@@ -272,10 +272,7 @@ fun HttpServer.viewer3d()
 
     createContext("/viewer3d/record_list")
     { exchange ->
-        val records = recordsFolder.listFiles()
-            ?.filter { it.isFile && it.extension == "dat" }
-            ?.map { it.nameWithoutExtension } ?: emptyList()
-
+        val records = GameRecord.records().map { it.nameWithoutExtension }
         val data = Json.encodeToString(records)
         exchange.sendResponseHeaders(200, data.toByteArray().size.toLong())
         exchange.responseHeaders.add("Content-Type", "application/json; charset=UTF-8")
@@ -417,29 +414,5 @@ private class Replayer(
             blocks.map { TickData.BlockChange(it.key.first, it.key.second, it.key.third, it.value) },
             entities
         )
-    }
-}
-
-
-@Awake(LifeCycle.ENABLE)
-fun register111()
-{
-    simpleCommand("cnm", permissionDefault = PermissionDefault.TRUE)
-    { _, _ ->
-        val file = recordsFolder.listFiles()?.firstOrNull { it.isFile && it.extension == "dat" } ?: return@simpleCommand
-        Replayer(RecordReader(file), 1.0, 0).use()
-        { replayer ->
-            File("test.txt").outputStream().bufferedWriter().use()
-            { output ->
-                output.append("data: ${Zstd.compress(Json.encodeToString(replayer.initialData).toByteArray()).encodeBase64()}\n\n")
-                while (true)
-                {
-                    val tickData = replayer.readTickData() ?: break
-                    val json = Json.encodeToString(tickData)
-                    val data = Zstd.compress(json.toByteArray()).encodeBase64()
-                    output.append("data: $data\n\n")
-                }
-            }
-        }
     }
 }

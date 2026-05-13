@@ -220,6 +220,8 @@ class GameRecord(
                 record.blocks += location
         }
 
+        fun records() = recordsFolder.listFiles()?.filter { it.isFile && it.extension == "dat" }?.sortedByDescending { it.name } ?: emptyList()
+
         fun file(world: () -> GameWorld, name: String, period: Long = 1): GameRecord =
             file(world, File(recordsFolder, "$name.dat"), period)
 
