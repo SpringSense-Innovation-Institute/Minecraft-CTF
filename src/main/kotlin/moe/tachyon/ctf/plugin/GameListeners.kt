@@ -7,12 +7,13 @@ import org.bukkit.Material
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Player
 import org.bukkit.event.entity.EntityDamageByEntityEvent
-import org.bukkit.event.entity.FoodLevelChangeEvent
 import org.bukkit.event.inventory.InventoryCreativeEvent
 import org.bukkit.event.player.AsyncPlayerChatEvent
 import org.bukkit.event.player.PlayerItemDamageEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerRespawnEvent
+import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.LeatherArmorMeta
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import org.bukkit.util.Vector
@@ -99,7 +100,7 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
     val player = event.player
     val team = world.getPlayerTeam(player.name)
     if (team == PlayerTeam.NONE) return
-    if (player.inventory.helmet == parasiticHelmet) return
+    if (player.inventory.helmet.isParasiticHelmet()) return
 
     val selfLocationStatus = if (team == PlayerTeam.LEFT) LocationStatus.IN_LEFT_FIELD else LocationStatus.IN_RIGHT_FIELD
     val enemyLocationStatus = if (team == PlayerTeam.LEFT) LocationStatus.IN_RIGHT_FIELD else LocationStatus.IN_LEFT_FIELD
@@ -109,7 +110,7 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
     val entities = player
         .getNearbyEntities(0.5, 1.0, 0.5)
         .filterIsInstance<Player>()
-        .filter { world.getPlayerTeam(it.name) != team && it.inventory.helmet != parasiticHelmet }
+        .filter { world.getPlayerTeam(it.name) != team && !it.inventory.helmet.isParasiticHelmet() }
 
     for (entity in entities)
     {
@@ -162,6 +163,11 @@ val parasiticHelmet = buildItem(Material.LEATHER_HELMET)
     this.color = Color.GREEN
     enchants[Enchantment.BINDING_CURSE] = 1
 }
+fun ItemStack?.isParasiticHelmet(): Boolean =
+    this != null &&
+    type == Material.LEATHER_HELMET &&
+    itemMeta?.hasEnchant(Enchantment.BINDING_CURSE) == true &&
+    (itemMeta as? LeatherArmorMeta)?.color == Color.GREEN
 
 // 玩家被寄生
 fun onPlayerParasitic(world: GameWorld, player: Player)
@@ -177,7 +183,7 @@ fun onPlayerParasitic(world: GameWorld, player: Player)
     submit(period = 1)
     {
         tick++
-        if (tick >= 260 || !player.isOnline || !world.gameStatus.inGame())
+        if (tick >= 260 || !player.isOnline || !world.gameStatus.inGame() || player.world != world.bukkitWorld())
         {
             player.inventory.helmet = null
             Bukkit.getPluginManager().callEvent(PlayerMoveEvent(player, player.location, player.location))
@@ -191,11 +197,9 @@ fun onPlayerParasitic(world: GameWorld, player: Player)
             player.removePotionEffect(PotionEffectType.JUMP_BOOST)
             return@submit
         }
-        val nearest = (world.leftGroupPlayers() + world.rightGroupPlayers()).asSequence()
-            .filter { it != player.name }
-            .mapNotNull { Bukkit.getPlayer(it) }
-            .filter { it.world == player.world }
-            .filter { it.inventory.helmet != parasiticHelmet }
+        val nearest = (world.leftGroupBukkitPlayers() + world.rightGroupBukkitPlayers()).asSequence()
+            .filter { it.name != player.name }
+            .filterNot { it.inventory.helmet.isParasiticHelmet() }
             .minByOrNull { it.location.distanceSquared(player.location) }
 
         val v =
@@ -219,11 +223,11 @@ private fun onPlayerParasitic(event: PlayerMoveEvent)
     val entities = player
         .getNearbyEntities(0.5, 1.0, 0.5)
         .filterIsInstance<Player>()
-        .filter { (player.inventory.helmet == parasiticHelmet) != (it.inventory.helmet == parasiticHelmet) }
+        .filter { player.inventory.helmet.isParasiticHelmet() != it.inventory.helmet.isParasiticHelmet() }
 
     for (entity in entities)
     {
-        if (player.inventory.helmet == parasiticHelmet) onPlayerParasitic(world, entity)
+        if (player.inventory.helmet.isParasiticHelmet()) onPlayerParasitic(world, entity)
         else onPlayerParasitic(world, player)
     }
 }

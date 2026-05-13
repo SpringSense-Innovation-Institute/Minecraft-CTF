@@ -25,10 +25,10 @@ import java.net.InetSocketAddress
 import java.util.*
 
 data class PlayerInput(
-    val yaw: Float, val pitch: Float,
-    val w: Boolean, val a: Boolean, val s: Boolean, val d: Boolean,
-    val jump: Boolean, val sneak: Boolean, val sprint: Boolean, val fly: Boolean,
-    val attack: UUID?
+    val yaw: Float = 0.0f, val pitch: Float = 0.0f,
+    val w: Boolean = false, val a: Boolean = false, val s: Boolean = false, val d: Boolean = false,
+    val jump: Boolean = false, val sneak: Boolean = false, val sprint: Boolean = false, val fly: Boolean = false,
+    val attack: UUID? = null,
 )
 {
     companion object
@@ -67,7 +67,7 @@ class BotNMSHandlerImpl: BotNMSHandler()
     {
         val nmsServer = (Bukkit.getServer() as org.bukkit.craftbukkit.v1_21_R1.CraftServer).server
         val nmsWorld = (world as org.bukkit.craftbukkit.v1_21_R1.CraftWorld).handle
-        val profile = GameProfile(UUID.randomUUID(), name)
+        val profile = GameProfile(Bukkit.getOfflinePlayer(name).uniqueId, name)
         val bot = EntityPlayer(nmsServer, nmsWorld, profile, ClientInformation.createDefault())
 
         val fakeConnection = NetworkManager(EnumProtocolDirection.SERVERBOUND)

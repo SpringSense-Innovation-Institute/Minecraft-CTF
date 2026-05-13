@@ -21,6 +21,7 @@ fun createBots(
             DEFAULT_SNEAK -> SneakBot(world)
             SIMPLE        -> SimpleBot(world)
             SIMPLE_JUMP   -> JumpSimpleBot(world)
+            TRIVIAL_BOT   -> TrivialBot(world)
         }
     }
 

@@ -69,6 +69,8 @@ class GameWorld(
 
     fun leftGroupPlayers() = leftGroupPlayers.toList()
     fun rightGroupPlayers() = rightGroupPlayers.toList()
+    fun leftGroupBukkitPlayers() = leftGroupPlayers.mapNotNull(Bukkit::getPlayer).filter { it.world.name == name }
+    fun rightGroupBukkitPlayers() = rightGroupPlayers.mapNotNull(Bukkit::getPlayer).filter { it.world.name == name }
     fun bukkitWorld(): World? = Bukkit.getWorld(name)
 
     fun updateTeam()
@@ -269,6 +271,7 @@ class GameWorld(
                     player.sendTitle("&6${leftGroup.displayName} VS ${rightGroup.displayName} 开始了!".colored(), "", 10, 70, 20)
                 }
                 bukkitWorld()?.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true)
+                bukkitWorld()?.pvp = true
 
                 updateStatisticData(practice)
                 {
@@ -487,19 +490,11 @@ class GameWorld(
         return map
     }
 
-    fun getCows(): List<Pair<Double, Double>>
-    {
-        val world = bukkitWorld() ?: return emptyList()
-        val res = world.getNearbyEntities(box).filterIsInstance<MushroomCow>().map { Pair(it.location.x, it.location.z) }
-        return res
-    }
+    fun getCows(): List<MushroomCow> =
+        bukkitWorld()?.getNearbyEntities(box)?.filterIsInstance<MushroomCow>() ?: emptyList()
 
-    fun getSilverfish(): List<Pair<Double, Double>>
-    {
-        val world = bukkitWorld() ?: return emptyList()
-        val res = world.getNearbyEntities(box).filterIsInstance<Silverfish>().map { Pair(it.location.x, it.location.z) }
-        return res
-    }
+    fun getSilverfish(): List<Silverfish> =
+        bukkitWorld()?.getNearbyEntities(box)?.filterIsInstance<Silverfish>() ?: emptyList()
 
     private fun getElement(x: Int, z: Int): MapElement
     {

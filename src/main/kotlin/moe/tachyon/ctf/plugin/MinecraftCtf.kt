@@ -149,6 +149,7 @@ sealed interface Group
         DEFAULT_SNEAK("sneak-bot", "DefaultSneak"),
         SIMPLE("simple", "Simple"),
         SIMPLE_JUMP("simple-jump", "SimpleJump"),
+        TRIVIAL_BOT("trivial", "Trivial")
         ;
     }
 }

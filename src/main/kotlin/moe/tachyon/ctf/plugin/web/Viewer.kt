@@ -46,8 +46,8 @@ fun HttpServer.viewer2d()
                     .mapNotNull(Bukkit::getPlayer)
                     .filter { world.getPlayerTeam(it.name) != PlayerTeam.NONE }
                     .associate { it.name to GameData.PlayerInfo(it.location.x + 24, it.location.z + 36, if (world.getPlayerTeam(it.name) == PlayerTeam.LEFT) "red" else "blue") },
-                cows = world.getCows().map { GameData.Position(it.first + 24, it.second + 36) },
-                silverfish = world.getSilverfish().map { GameData.Position(it.first + 24, it.second + 36) },
+                cows = world.getCows().map { GameData.Position(it.location.x + 24, it.location.z + 36) },
+                silverfish = world.getSilverfish().map { GameData.Position(it.location.x + 24, it.location.z + 36) },
                 leftScore = map.flatten().count { it == GameWorld.MapElement.RIGHT_TARGET_WITH_FLAG },
                 rightScore = map.flatten().count { it == GameWorld.MapElement.LEFT_TARGET_WITH_FLAG },
             )

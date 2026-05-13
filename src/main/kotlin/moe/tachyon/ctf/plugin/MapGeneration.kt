@@ -331,7 +331,7 @@ private class SilverfishAI(
             .mapNotNull { Bukkit.getPlayer(it) }
             .map { it to it.location.clone().apply { y = bug.location.y } }
             .filter { it.second.world == bug.world }
-            .filter { it.first.inventory.helmet != parasiticHelmet }
+            .filterNot { it.first.inventory.helmet.isParasiticHelmet() }
             .minByOrNull { it.second.distanceSquared(bug.location) } ?: return
 
         if (target.first.world != bug.world) return
