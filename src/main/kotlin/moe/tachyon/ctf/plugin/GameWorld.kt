@@ -229,7 +229,11 @@ class GameWorld(
                 {
                     val player = Bukkit.getPlayer(it) ?: return@forEach
                     player.inventory.clear()
-                    player.foodLevel = 20
+
+                    player.foodLevel = 9
+                    player.exhaustion = 0f
+                    player.saturation = 0f
+
                     player.activePotionEffects.forEach { player.removePotionEffect(it.type) }
                     player.health = 20.0
                     val team = getPlayerTeam(it)

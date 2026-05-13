@@ -274,13 +274,6 @@ private fun onPlayerMessage(event: AsyncPlayerChatEvent)
 }
 
 @SubscribeEvent
-private fun onFoodChange(event: FoodLevelChangeEvent)
-{
-    if (event.foodLevel < 7)
-        event.foodLevel = 7
-}
-
-@SubscribeEvent
 private fun onItemDamage(event: PlayerItemDamageEvent)
 {
     event.isCancelled = true
