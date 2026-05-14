@@ -214,12 +214,12 @@ open class SimpleBot(world: GameWorld): DefaultBot(world)
 
 class JumpBot(world: GameWorld): DefaultBot(world)
 {
-    override fun tick(): PlayerInput = super.tick().copy(jump = true, sprint = true)
+    override fun tick(): PlayerInput = super.tick().copy(jump = (player?.foodLevel ?: 0) > 6, sprint = true)
 }
 
 class JumpSimpleBot(world: GameWorld): SimpleBot(world)
 {
-    override fun tick(): PlayerInput = super.tick().copy(jump = true, sprint = true)
+    override fun tick(): PlayerInput = super.tick().copy(jump = (player?.foodLevel ?: 0) > 6, sprint = true)
 }
 
 class SneakBot(world: GameWorld): DefaultBot(world)
@@ -234,7 +234,7 @@ class TrivialBot(world: GameWorld): DefaultBot(world)
         val p = player ?: return PlayerInput.EMPTY
         val enemies = if (world.leftGroup.isBot) world.rightGroupBukkitPlayers() else world.leftGroupBukkitPlayers()
         val res = (enemies + world.getSilverfish()).minByOrNull { it.location.distance(p.location) }
-        return super.tick().copy(jump = true, sprint = true, attack = res?.uniqueId)
+        return super.tick().copy(jump = p.foodLevel > 6, sprint = true, attack = res?.uniqueId)
     }
 
     override fun getMap(): List<List<MapElement>>
