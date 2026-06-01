@@ -3,7 +3,6 @@ package moe.tachyon.ctf.plugin
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.mainWorld
-import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.World
@@ -37,14 +36,15 @@ enum class LocationStatus
     OUT_OF_FIELD,
     ;
 
-    fun location(world: GameWorld): Location = when (this)
+    fun location(world: GameWorld): Location = location(world.bukkitWorld() ?: mainWorld)
+    fun location(world: World): Location = when (this)
     {
-        IN_LEFT_FIELD, IN_LEFT_BASE -> Location(world.bukkitWorld(), -21.5, 1.0, 0.5)
-        IN_RIGHT_FIELD, IN_RIGHT_BASE -> Location(world.bukkitWorld(), 22.5, 1.0, 0.5)
-        IN_LEFT_PRISON -> Location(world.bukkitWorld(), -15.5, 1.0, 28.5)
-        IN_RIGHT_PRISON -> Location(world.bukkitWorld(), 16.5, 1.0, 28.5)
-        IN_CENTER -> Location(world.bukkitWorld(), 0.5, 1.0, 0.5)
-        IN_FIELD -> Location(world.bukkitWorld(), 0.5, 1.0, 0.5)
+        IN_LEFT_FIELD, IN_LEFT_BASE -> Location(world, -21.5, 1.0, 0.5)
+        IN_RIGHT_FIELD, IN_RIGHT_BASE -> Location(world, 22.5, 1.0, 0.5)
+        IN_LEFT_PRISON -> Location(world, -15.5, 1.0, 28.5)
+        IN_RIGHT_PRISON -> Location(world, 16.5, 1.0, 28.5)
+        IN_CENTER -> Location(world, 0.5, 1.0, 0.5)
+        IN_FIELD -> Location(world, 0.5, 1.0, 0.5)
         OUT_OF_FIELD ->
         {
             val atX = randomDouble() < 0.5
@@ -52,13 +52,13 @@ enum class LocationStatus
             val x = if (atX) random(-24.0, 24.0) else random(-36.0, 36.0)
 
             val location = Location(
-                world.bukkitWorld(),
+                world,
                 if (atX) x else if (tmp) -24.0 else 24.0,
                 30.0,
                 if (atX) if (tmp) -36.0 else 36.0 else x,
             )
 
-            val vec = Location(world.bukkitWorld(), 0.5, 1.0, 0.5).toVector().subtract(location.toVector())
+            val vec = Location(world, 0.5, 1.0, 0.5).toVector().subtract(location.toVector())
 
             location.direction = vec
 
@@ -88,8 +88,11 @@ enum class LocationStatus
 
 fun Entity.teleport(world: GameWorld, locationStatus: LocationStatus)
 {
-    if (locationStatus == LocationStatus.OUT_OF_FIELD && this is Player)
+    if (locationStatus == LocationStatus.OUT_OF_FIELD && this is Player && this.allowFlight)
         isFlying = true
+    else if (this is Player)
+        isFlying = false
+
     teleport(locationStatus.location(world))
 }
 
@@ -145,10 +148,9 @@ fun HumanEntity.replayRecord(file: File)
     var count = 10
     submit(period = 20)
     {
-        world.getPlayers().forEach()
+        world.getBukkitPlayers().forEach()
         {
-            val player = Bukkit.getPlayer(it) ?: return@forEach
-            player.title("§e即将开始回放 $count", "", 0, 20, 0)
+            it.title("§e即将开始回放 $count", "", 0, 20, 0)
         }
         count--
         if (count <= 0)

@@ -106,10 +106,13 @@ class GameRecord(
                                 blocks += Location(world.bukkitWorld(), x.toDouble(), y.toDouble(), z.toDouble())
             }
 
-            recordWriter.writeTick(
-                blocks.map { BlockStatus(it.blockX, it.blockY, it.blockZ, bukkitWorld.getBlockAt(it).blockData.asString) },
-                entities,
-            )
+            submit(async = true)
+            {
+                recordWriter.writeTick(
+                    blocks.map { BlockStatus(it.blockX, it.blockY, it.blockZ, bukkitWorld.getBlockAt(it).blockData.asString) },
+                    entities,
+                )
+            }
         }
     }
 

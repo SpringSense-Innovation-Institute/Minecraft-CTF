@@ -142,7 +142,8 @@ fun HttpServer.viewer3d()
                 val changes = mutableListOf<TickData.BlockChange>()
                 synchronized(updateBlocks)
                 {
-                    updateBlocks.forEach { block ->
+                    updateBlocks.forEach()
+                    { block ->
                         val x = block.x
                         val y = block.y
                         val z = block.z

@@ -58,7 +58,7 @@ object MinecraftCtfPlugin: Plugin()
 
         trekTask = submit(period = 4, async = false)
         {
-            val players = onlinePlayers().filter { it.world == mainWorld.name }.map { it.cast<Player>() }
+            val players = mainWorld.players
             players.forEach()
             {
                 if ("文明终点：黑曜石" in it.inventory.itemInMainHand.getName())

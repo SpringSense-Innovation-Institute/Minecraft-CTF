@@ -4,6 +4,7 @@ import moe.tachyon.ctf.plugin.GameRecord.Companion.box
 import org.bukkit.*
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.MushroomCow
+import org.bukkit.entity.Player
 import org.bukkit.entity.Silverfish
 import org.bukkit.event.player.PlayerMoveEvent
 import taboolib.common.platform.function.submit
@@ -56,6 +57,8 @@ class GameWorld(
 
     fun getPlayers(): List<String>
         = bukkitWorld()?.players?.map { it.name } ?: emptyList()
+    fun getBukkitPlayers(): List<Player>
+            = bukkitWorld()?.players ?: emptyList()
     
     fun broadcastMessage(message: String)
         = bukkitWorld()?.players?.forEach { it.sendMessage(message) }
