@@ -152,24 +152,32 @@ private fun onPlayerChangeWorld(event: PlayerChangedWorldEvent)
 @SubscribeEvent(ignoreCancelled = true)
 private fun onPlayerMatch(event: AsyncPlayerChatEvent)
 {
-    if (event.player.world != mainWorld)
-    {
-        val gameWorld = getGameWorld(event.player.world.name) ?: return
-        if (gameWorld.gameStatus.inGame() || gameWorld.gameStatus.preparing())
-            return
-    }
-
     val msg = event.message.lowercase()
-
     if (!msg.startsWith("match "))
         return
 
     event.isCancelled = true
+    val playerName = event.player.name
+    submit(async = false)
+    {
+        handlePlayerMatch(playerName, msg)
+    }
+}
 
-    val illegal = { event.player.sendMessage("§c匹配参数错误！正确格式：match enemy:<enemy> players:<count> map:<mapType>") }
+private fun handlePlayerMatch(playerName: String, msg: String)
+{
+    val player = Bukkit.getPlayer(playerName) ?: return
+    if (player.world != mainWorld)
+    {
+        val gameWorld = getGameWorld(player.world.name) ?: return
+        if (gameWorld.gameStatus.inGame() || gameWorld.gameStatus.preparing())
+            return
+    }
+
+    val illegal = { player.sendMessage("§c匹配参数错误！正确格式：match enemy:<enemy> players:<count> map:<mapType>") }
 
     val args = msg.split(" ").filter { ':' in it }.map { it.split(":") }.associate { it[0] to it[1] }
-    val group = getPlayerGroup(event.player.name)?.id ?: return event.player.sendMessage("§c你没有加入任何队伍，无法匹配！")
+    val group = getPlayerGroup(player.name)?.id ?: return player.sendMessage("§c你没有加入任何队伍，无法匹配！")
     val enemyTeam = args["enemy"] ?: return illegal()
     val count = args["players"]?.toIntOrNull()?.takeIf { it in 0..5 } ?: return illegal()
     val map = args["map"] ?: return illegal()
@@ -202,7 +210,7 @@ private fun onPlayerMatch(event: AsyncPlayerChatEvent)
     }
 
     addToWaitList(
-        playerName = event.player.name,
+        playerName = player.name,
         setting = MatchSetting(
             group = group,
             enemy = enemyMode,
@@ -216,14 +224,24 @@ private fun onPlayerMatch(event: AsyncPlayerChatEvent)
 private fun onPlayerChat(event: AsyncPlayerChatEvent)
 {
     event.isCancelled = true
-    val msg = "<${event.player.name}> ${event.message}"
+    val playerName = event.player.name
+    val message = event.message
+    submit(async = false)
+    {
+        handlePlayerChat(playerName, message)
+    }
+}
 
+private fun handlePlayerChat(playerName: String, message: String)
+{
+    val player = Bukkit.getPlayer(playerName) ?: return
+    val msg = "<${player.name}> $message"
     val sensitiveMessages = listOf(GAME_PREPARED_MESSAGE, GAME_START_MESSAGE, GAME_END_MESSAGE).map { it.trim().lowercase() }
 
     if (sensitiveMessages.any { msg.lowercase().contains(it) })
         return
 
-    event.player.world.players.forEach()
+    player.world.players.forEach()
     {
         it.sendMessage(msg)
     }

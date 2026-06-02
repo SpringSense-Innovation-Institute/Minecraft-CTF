@@ -272,8 +272,12 @@ private fun onPlayerMessage(event: AsyncPlayerChatEvent)
 {
     if (event.message.equals(PLAYER_PREPARE_MESSAGE, ignoreCase = true))
     {
-        getGameWorlds().forEach { it.playerPrepared(event.player.name) }
+        val playerName = event.player.name
         event.isCancelled = true
+        submit(async = false)
+        {
+            getGameWorlds().forEach { it.playerPrepared(playerName) }
+        }
     }
 }
 
