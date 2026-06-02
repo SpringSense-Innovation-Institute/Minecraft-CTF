@@ -32,12 +32,6 @@ private fun horizontalVelocity(from: Location, target: Location, speed: Double):
     return Vector(dx / length * speed, 0.0, dz / length * speed)
 }
 
-private fun LivingEntity.steerHorizontally(target: Location, speed: Double)
-{
-    val v = horizontalVelocity(location, target, speed) ?: return
-    velocity = Vector(v.x, velocity.y, v.z)
-}
-
 private fun GameWorld.randomLocations(
     xRange: IntRange,
     zRange: IntRange,
@@ -300,8 +294,8 @@ private class CowAI(
 
         if (target.first.world != cow.world) return
 
-        if (sprinting) cow.steerHorizontally(target.second, 0.45)
-        else cow.steerHorizontally(target.second, 0.18)
+        if (sprinting) cow.navigationMove(target.first, 3.0)
+        else cow.navigationMove(target.first, 1.0)
 
         if (target.second.distanceSquared(cow.location) < 1.0 && !cooldown)
         {
@@ -348,7 +342,7 @@ private class SilverfishAI(
 
         if (target.first.world != bug.world) return
 
-        bug.steerHorizontally(target.second, 0.22)
+        bug.navigationMove(target.first, 1.0)
 
         if (target.second.distanceSquared(bug.location) < 2.5)
             horizontalVelocity(bug.location, target.second, 0.4)?.let { bug.velocity = it }
