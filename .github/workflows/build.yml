@@ -30,3 +30,17 @@ jobs:
         with:
           name: Minecraft-CTF-Plugin
           path: build/libs/*.jar
+
+      - name: Generate tag name
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: echo "TAG_NAME=build-$(date +'%Y%m%d')-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
+
+      - name: Publish to GitHub Releases
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: Build ${{ env.TAG_NAME }}
+          body: "Automated build from commit [${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"
+          make_latest: true
+          files: build/libs/*.jar
