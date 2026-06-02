@@ -3,6 +3,8 @@ package moe.tachyon.ctf.plugin
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.mainWorld
+import moe.tachyon.ctf.plugin.MinecraftCtfPlugin.recordsFolder
+import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.World
@@ -130,14 +132,38 @@ data class GameSettingData(
     var randomMap: Boolean = true,
 )
 
-private fun randomId() = Random.nextULong().toString(36).take(4).padStart(4, '0')
+private fun randomId(length: Int = 8) =
+    Random.nextULong().toString(36).take(length).padStart(length, '0')
+
+private fun uniqueWorldName(prefix: String): String
+{
+    repeat(1000)
+    {
+        val name = "$prefix-${randomId()}"
+        val worldDir = File(Bukkit.getWorldContainer(), name)
+        if (Bukkit.getWorld(name) == null && !worldDir.exists())
+            return name
+    }
+    error("无法生成唯一世界名称：$prefix")
+}
+
+private fun uniqueRecordName(prefix: String): String
+{
+    repeat(1000)
+    {
+        val name = "${prefix}_${randomId()}"
+        if (!recordsFolder.resolve("$name.dat").exists())
+            return name
+    }
+    error("无法生成唯一录像文件名：$prefix")
+}
 
 fun HumanEntity.replayRecord(file: File)
 {
     var world: GameWorld? = null
     val record = GameRecord.file({ world!! }, file)
     world = generateGameWorld(
-        name = "replay-${file.nameWithoutExtension}-${randomId()}",
+        name = uniqueWorldName("replay-${file.nameWithoutExtension}"),
         setting = GameSettingData(),
         record = record,
     )
@@ -167,9 +193,10 @@ fun createGame(data: GameSettingData, timeout: Boolean): GameWorld
     val date = Date()
     val format = SimpleDateFormat("yy-MM-dd_HH-mm-ss")
     val prefix = practiceMode?.name?.plus("_") ?: ""
-    val record = GameRecord.file({ world!! }, "${prefix}${format.format(date)}_${data.leftGroup.displayName}-vs-${data.rightGroup.displayName}_${randomId()}")
+    val recordName = uniqueRecordName("${prefix}${format.format(date)}_${data.leftGroup.displayName}-vs-${data.rightGroup.displayName}")
+    val record = GameRecord.file({ world!! }, recordName)
     world = generateGameWorld(
-        "game-${data.leftGroup.displayName}-vs-${data.rightGroup.displayName}-${randomId()}",
+        uniqueWorldName("game-${data.leftGroup.displayName}-vs-${data.rightGroup.displayName}"),
         data,
         record,
     )

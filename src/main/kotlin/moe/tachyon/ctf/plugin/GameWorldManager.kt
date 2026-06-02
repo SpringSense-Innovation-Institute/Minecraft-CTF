@@ -26,6 +26,7 @@ fun generateGameWorld(
     val newWorldDir = File(serverFolder, name)
 
     if (!templateDir.exists()) error("模板世界 $TEMPLATE_WORLD_NAME 不存在！")
+    if (Bukkit.getWorld(name) != null || newWorldDir.exists()) error("世界 $name 已存在！")
 
     for (filename in listOf("uid.dat", "session.lock", "playerdata", "stats", "advancements"))
     {
@@ -33,7 +34,7 @@ fun generateGameWorld(
         if (file.exists()) file.deleteRecursively()
     }
 
-    templateDir.copyRecursively(newWorldDir, overwrite = true) { _, _ -> OnErrorAction.SKIP }
+    templateDir.copyRecursively(newWorldDir, overwrite = false) { _, _ -> OnErrorAction.SKIP }
 
     val creator = WorldCreator(name)
     creator.generateStructures(false)
