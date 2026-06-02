@@ -281,9 +281,13 @@ class RecordWriter(
         if (tmpFile.exists()) tmpFile.delete()
         DataOutputStream(tmpFile.outputStream())
     }
+    private var closed = false
 
-    override fun close()
+    override fun close(): Unit = synchronized(this)
     {
+        if (closed) return
+        closed = true
+
         tmpFileOutput.writeShort(-1)
         tmpFileOutput.flush()
         tmpFileOutput.close()
@@ -304,6 +308,8 @@ class RecordWriter(
 
     fun writeTick(blocks: List<BlockStatus>, entities: List<EntityStatus>) = synchronized(this)
     {
+        if (closed) return@synchronized
+
         start
         tickCount++
         tmpFileOutput.writeInt(entities.size)
