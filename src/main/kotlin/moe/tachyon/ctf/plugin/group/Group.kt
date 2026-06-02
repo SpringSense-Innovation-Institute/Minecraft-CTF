@@ -85,13 +85,13 @@ fun saveGroups(groups: List<GroupInfo>) = synchronized(lock)
     groupFile.writeText(Json.encodeToString(groups))
 }
 
-fun getAllPlayers(): List<GroupInfo.PlayerInfo>
+fun getAllPlayers(): List<GroupInfo.PlayerInfo> = synchronized(lock)
 {
     if (!playerFile.exists()) return emptyList()
     return runCatching { Json.decodeFromString<List<GroupInfo.PlayerInfo>>(playerFile.readText()) }.getOrNull() ?: emptyList()
 }
 
-private fun saveAllPlayers(players: List<GroupInfo.PlayerInfo>)
+private fun saveAllPlayers(players: List<GroupInfo.PlayerInfo>) = synchronized(lock)
 {
     if (!playerFile.parentFile.exists()) playerFile.parentFile.mkdirs()
     playerFile.writeText(Json.encodeToString(players))
