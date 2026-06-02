@@ -94,12 +94,19 @@ fun HttpServer.viewer3d()
     createContext("/viewer3d/live")
     { exchange ->
         val player = SessionManager.getPlayerIdFromCookie(exchange)
-            ?: return@createContext exchange.sendResponseHeaders(401, -1)
-        exchange.sseHeaders()
+            ?: return@createContext run {
+                exchange.sendResponseHeaders(401, -1)
+                exchange.responseBody.close()
+            }
 
         val world = getGameWorlds()
             .firstOrNull { (it.leftGroupPlayers().contains(player) || it.rightGroupPlayers().contains(player)) && !it.gameStatus.none() }
-            ?: return@createContext exchange.sendResponseHeaders(404, -1)
+            ?: return@createContext run {
+                exchange.sendResponseHeaders(404, -1)
+                exchange.responseBody.close()
+            }
+
+        exchange.sseHeaders()
 
         var init = true
         val updateBlocks = mutableListOf<Block>()
@@ -205,7 +212,10 @@ fun HttpServer.viewer3d()
     { exchange ->
         val args = exchange.args()
 
-        val name = args["name"] ?: return@createContext exchange.sendResponseHeaders(400, -1)
+        val name = args["name"] ?: return@createContext run {
+            exchange.sendResponseHeaders(400, -1)
+            exchange.responseBody.close()
+        }
         val start = args["start"]?.toIntOrNull() ?: 0
         val speed = args["speed"]?.toDouble() ?: 1.0
 
@@ -213,6 +223,7 @@ fun HttpServer.viewer3d()
         if (!file.exists())
         {
             exchange.sendResponseHeaders(404, -1)
+            exchange.responseBody.close()
             return@createContext
         }
 

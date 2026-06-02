@@ -26,7 +26,10 @@ fun HttpServer.viewer2d()
     createContext("/viewer2d/sse")
     { exchange ->
         val player = SessionManager.getPlayerIdFromCookie(exchange)
-            ?: return@createContext exchange.sendResponseHeaders(401, -1)
+            ?: return@createContext run {
+                exchange.sendResponseHeaders(401, -1)
+                exchange.responseBody.close()
+            }
 
         exchange.sseHeaders()
 
@@ -35,29 +38,35 @@ fun HttpServer.viewer2d()
             val world = getGameWorlds().firstOrNull()
             {
                 (player in it.leftGroupPlayers() || player in it.rightGroupPlayers()) && !it.gameStatus.none()
-            } ?: return@loop
+            }
 
-            val map = world.getMap()
+            val message = if (world == null)
+            {
+                "event: heartbeat\ndata: {}\n\n"
+            }
+            else
+            {
+                val map = world.getMap()
+                val data = GameData(
+                    myTeam = if (player in world.leftGroupPlayers()) "red" else "blue",
+                    map = map,
+                    players = world.getPlayers()
+                        .mapNotNull(Bukkit::getPlayer)
+                        .filter { world.getPlayerTeam(it.name) != PlayerTeam.NONE }
+                        .associate { it.name to GameData.PlayerInfo(it.location.x + 24, it.location.z + 36, if (world.getPlayerTeam(it.name) == PlayerTeam.LEFT) "red" else "blue") },
+                    cows = world.getCows().map { GameData.Position(it.location.x + 24, it.location.z + 36) },
+                    silverfish = world.getSilverfish().map { GameData.Position(it.location.x + 24, it.location.z + 36) },
+                    leftScore = map.flatten().count { it == GameWorld.MapElement.RIGHT_TARGET_WITH_FLAG },
+                    rightScore = map.flatten().count { it == GameWorld.MapElement.LEFT_TARGET_WITH_FLAG },
+                )
+                "data: ${Json.encodeToString(data)}\n\n"
+            }
 
-            val data = GameData(
-                myTeam = if (player in world.leftGroupPlayers()) "red" else "blue",
-                map = map,
-                players = world.getPlayers()
-                    .mapNotNull(Bukkit::getPlayer)
-                    .filter { world.getPlayerTeam(it.name) != PlayerTeam.NONE }
-                    .associate { it.name to GameData.PlayerInfo(it.location.x + 24, it.location.z + 36, if (world.getPlayerTeam(it.name) == PlayerTeam.LEFT) "red" else "blue") },
-                cows = world.getCows().map { GameData.Position(it.location.x + 24, it.location.z + 36) },
-                silverfish = world.getSilverfish().map { GameData.Position(it.location.x + 24, it.location.z + 36) },
-                leftScore = map.flatten().count { it == GameWorld.MapElement.RIGHT_TARGET_WITH_FLAG },
-                rightScore = map.flatten().count { it == GameWorld.MapElement.LEFT_TARGET_WITH_FLAG },
-            )
-
-            val json = Json.encodeToString(data)
             submit(async = true)
             {
                 try
                 {
-                    exchange.responseBody.write("data: $json\n\n".toByteArray())
+                    exchange.responseBody.write(message.toByteArray())
                     exchange.responseBody.flush()
                 }
                 catch (_: IOException)
