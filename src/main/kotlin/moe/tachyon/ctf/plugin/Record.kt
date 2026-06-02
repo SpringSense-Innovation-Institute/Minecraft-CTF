@@ -273,10 +273,12 @@ class RecordWriter(
         generateSequence { File(file.absolutePath + "." + randomId() + ".tmp") }.first { !it.exists() }
     }
 
-    private val tmpFileOutput by lazy {
+    private val tmpFileOutput by lazy()
+    {
         if (tmpFile.exists()) tmpFile.delete()
         DataOutputStream(tmpFile.outputStream())
     }
+
     private val executor = Executors.newSingleThreadExecutor()
     { task ->
         Thread(task, "CTF-RecordWriter-${file.nameWithoutExtension.take(32)}").apply { isDaemon = true }
@@ -287,7 +289,8 @@ class RecordWriter(
     fun closeAsync(onClosed: () -> Unit = {})
     {
         if (!closeStarted.compareAndSet(false, true)) return
-        executor.execute {
+        executor.execute()
+        {
             runCatching { closeInternal() }
             runCatching { onClosed() }
             executor.shutdown()
@@ -327,7 +330,8 @@ class RecordWriter(
     {
         if (closeStarted.get()) return
 
-        executor.execute {
+        executor.execute()
+        {
             synchronized(this)
             {
                 if (closed.get()) return@synchronized
