@@ -111,6 +111,13 @@ fun processWaitList() = synchronized(waitList)
 
             if (isGameSettingMatched(setting, setting2))
             {
+                if (Bukkit.getPlayer(playerName2) == null)
+                {
+                    waitList -= playerName2
+                    list[j] = list[j].copy(third = false)
+                    continue
+                }
+
                 makeGame(playerName, setting, playerName2, setting2)
                 waitList -= playerName
                 waitList -= playerName2
