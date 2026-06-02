@@ -10,6 +10,7 @@ import taboolib.common.platform.command.simpleCommand
 import taboolib.common.platform.event.SubscribeEvent
 import taboolib.common.platform.function.info
 
+@Volatile
 var whiteListMode = false
 
 @SubscribeEvent
