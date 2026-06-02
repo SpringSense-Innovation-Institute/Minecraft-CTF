@@ -95,11 +95,12 @@ fun HttpServer.viewer3d()
     { exchange ->
         val player = SessionManager.getPlayerIdFromCookie(exchange)
             ?: return@createContext exchange.sendResponseHeaders(401, -1)
-        exchange.sseHeaders()
 
         val world = getGameWorlds()
             .firstOrNull { (it.leftGroupPlayers().contains(player) || it.rightGroupPlayers().contains(player)) && !it.gameStatus.none() }
             ?: return@createContext exchange.sendResponseHeaders(404, -1)
+
+        exchange.sseHeaders()
 
         var init = true
         val updateBlocks = mutableListOf<Block>()
