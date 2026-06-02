@@ -107,6 +107,7 @@ data class PracticeMode(
     val playersPerGroup: Int? = null,
 )
 
+@Volatile
 var practiceMode: PracticeMode? = null
 
 enum class GameStatus
