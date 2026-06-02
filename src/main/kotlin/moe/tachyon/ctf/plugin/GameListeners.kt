@@ -172,6 +172,8 @@ fun ItemStack?.isParasiticHelmet(): Boolean =
 // 玩家被寄生
 fun onPlayerParasitic(world: GameWorld, player: Player)
 {
+    if (player.inventory.helmet.isParasiticHelmet()) return
+
     onPlayerDropFlag(player)
     val speed = player.walkSpeed
     player.walkSpeed = 0.0f
