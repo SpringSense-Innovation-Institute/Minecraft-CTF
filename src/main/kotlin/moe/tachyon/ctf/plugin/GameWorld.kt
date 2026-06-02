@@ -8,6 +8,7 @@ import org.bukkit.entity.Player
 import org.bukkit.entity.Silverfish
 import org.bukkit.event.player.PlayerMoveEvent
 import taboolib.common.platform.function.submit
+import taboolib.common.platform.function.warning
 import taboolib.common.platform.service.PlatformExecutor
 import taboolib.module.chat.colored
 import taboolib.platform.util.buildItem
@@ -227,7 +228,19 @@ class GameWorld(
             }
             if (tick == 0L)
             {
-                resetGameMap()
+                try
+                {
+                    resetGameMap()
+                }
+                catch (e: Throwable)
+                {
+                    val message = e.message ?: e::class.simpleName ?: "未知错误"
+                    warning("游戏 $name 地图生成失败，已取消本局：$message")
+                    broadcastMessage("&c地图生成失败，本局已取消：$message".colored())
+                    stopGame(PlayerTeam.NONE)
+                    task?.cancel()
+                    return@submit
+                }
                 record.start()
                 bukkitWorld()?.difficulty = Difficulty.HARD
                 getPlayers().forEach()
