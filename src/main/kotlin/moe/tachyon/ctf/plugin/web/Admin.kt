@@ -191,9 +191,9 @@ fun HttpServer.admin()
         @Serializable
         data class CreateData(val name: String, val players: List<String>)
 
-        val data = Json.decodeFromString<CreateData>(body)
         try
         {
+            val data = Json.decodeFromString<CreateData>(body)
             val id = createGroup(data.name, data.players)
             val r = id.toString()
             exchange.sendResponseHeaders(200, r.toByteArray().size.toLong())
@@ -322,13 +322,23 @@ fun HttpServer.admin()
         @Serializable
         data class WhitelistData(val enabled: Boolean)
 
-        val data = Json.decodeFromString<WhitelistData>(body)
-        whiteListMode = data.enabled
-        val r = Json.encodeToString(mapOf("enabled" to data.enabled)).toByteArray()
-        exchange.sendResponseHeaders(200, r.size.toLong())
-        exchange.responseHeaders.add("Content-Type", "application/json")
-        val os = exchange.responseBody
-        os.write(r)
-        os.close()
+        try
+        {
+            val data = Json.decodeFromString<WhitelistData>(body)
+            whiteListMode = data.enabled
+            val r = Json.encodeToString(mapOf("enabled" to data.enabled)).toByteArray()
+            exchange.sendResponseHeaders(200, r.size.toLong())
+            exchange.responseHeaders.add("Content-Type", "application/json")
+            val os = exchange.responseBody
+            os.write(r)
+            os.close()
+        }
+        catch (e: Throwable)
+        {
+            exchange.sendResponseHeaders(400, e.message?.toByteArray()?.size?.toLong() ?: 0)
+            val os = exchange.responseBody
+            os.write(e.message?.toByteArray() ?: ByteArray(0))
+            os.close()
+        }
     }
 }

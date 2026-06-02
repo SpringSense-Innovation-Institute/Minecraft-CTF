@@ -28,10 +28,16 @@ fun HttpServer.register()
     createContext("/registerGroup")
     { exchange ->
         val body = exchange.requestBody.bufferedReader().readText()
-        val data = Json.decodeFromString<RegisterData>(body)
-        val group = try
+        try
         {
-            createGroup(data.name, data.players)
+            val data = Json.decodeFromString<RegisterData>(body)
+            val group = createGroup(data.name, data.players)
+            val r = group.toString()
+            exchange.sendResponseHeaders(200, r.toByteArray().size.toLong())
+            exchange.responseHeaders.add("Content-Type", "text/plain; charset=UTF-8")
+            val os = exchange.responseBody
+            os.write(r.toByteArray())
+            os.close()
         }
         catch (e: Throwable)
         {
@@ -41,12 +47,6 @@ fun HttpServer.register()
             os.close()
             return@createContext
         }
-        val r = group.toString()
-        exchange.sendResponseHeaders(200, r.toByteArray().size.toLong())
-        exchange.responseHeaders.add("Content-Type", "text/plain; charset=UTF-8")
-        val os = exchange.responseBody
-        os.write(r.toByteArray())
-        os.close()
     }
 
     createContext("/groups")
