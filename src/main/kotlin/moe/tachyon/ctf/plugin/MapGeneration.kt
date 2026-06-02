@@ -82,6 +82,11 @@ fun GameWorld.clearMap()
     }
 }
 
+private fun Location.isEmpty() =
+    block.type == Material.GRASS_BLOCK &&
+    clone().add(0.0, 1.0, 0.0).block.type.isAir &&
+    clone().add(0.0, 2.0, 0.0).block.type.isAir
+
 fun GameWorld.generateMap()
 {
     val leftFlags = mutableListOf<Pair<Int, Int>>()
@@ -101,15 +106,16 @@ fun GameWorld.generateMap()
     }
     else // 随机地图生成
     {
-        val reserved = mutableSetOf<Pair<Int, Int>>()
         val generate: (IntRange, IntRange) -> List<Pair<Int, Int>> = { xRange, zRange ->
             randomLocations(xRange, zRange, 8, "旗帜/目标点")
             { location ->
-                val location1 = location.clone().add(0.0, 1.0, 0.0)
-                location.block.type == Material.GRASS_BLOCK &&
-                    location1.block.type.isAir &&
-                    (location.blockX to location.blockZ) !in reserved
-            }.map { it.blockX to it.blockZ }.also { reserved += it }
+                val x = location.blockX
+                val z = location.blockZ
+                location.isEmpty() && listOf(leftTarget, rightTarget, leftFlags, rightFlags).all()
+                { list ->
+                    list.none { it.first == x && it.second == z }
+                }
+            }.map { it.blockX to it.blockZ }
         }
         leftFlags += generate((-24..-12), (-36..36))
         rightFlags += generate((12..24), (-36..36))
@@ -131,12 +137,6 @@ fun GameWorld.generateMap()
 
     for (flag in rightFlags)
         Location(bukkitWorld(), flag.first.toDouble(), 2.0, flag.second.toDouble()).block.type = Material.BLUE_BANNER
-
-
-    fun Location.isEmpty() =
-        block.type == Material.GRASS_BLOCK &&
-        clone().add(0.0, 1.0, 0.0).block.type.isAir &&
-        clone().add(0.0, 2.0, 0.0).block.type.isAir
 
     // 生成树
     fun Location.hasTreeSpace(): Boolean
