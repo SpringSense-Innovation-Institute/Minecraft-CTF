@@ -326,12 +326,13 @@ class GameWorld(
         }
     }
 
-    fun stopGame(winner: PlayerTeam = getWinner(end = true)!!)
+    fun stopGame(winner: PlayerTeam? = null)
     {
-        if (gameStatus == GameStatus.NONE) return
+        val previousStatus = gameStatus
+        if (previousStatus == GameStatus.NONE) return
 
         gameStatus = GameStatus.NONE
-        if (gameStatus == GameStatus.PREPARING)
+        if (previousStatus == GameStatus.PREPARING)
         {
             broadcastMessage("&c游戏已取消".colored())
             getPlayers().forEach()
@@ -341,6 +342,8 @@ class GameWorld(
             }
             return
         }
+
+        val resolvedWinner = winner ?: getWinner(end = true) ?: PlayerTeam.NONE
 
         getPlayers().forEach()
         {
@@ -360,10 +363,10 @@ class GameWorld(
         getPlayers().forEach()
         {
             val player = Bukkit.getPlayer(it) ?: return@forEach
-            if (winner == PlayerTeam.NONE)
+            if (resolvedWinner == PlayerTeam.NONE)
                 player.sendTitle("&6${leftGroup.displayName} 与 ${rightGroup.displayName} 平局!".colored(), "", 10, 70, 20)
             else
-                player.sendTitle("&6${if (winner == PlayerTeam.LEFT) leftGroup.displayName else rightGroup.displayName} 获胜!".colored(), "", 10, 70, 20)
+                player.sendTitle("&6${if (resolvedWinner == PlayerTeam.LEFT) leftGroup.displayName else rightGroup.displayName} 获胜!".colored(), "", 10, 70, 20)
 
             player.inventory.clear()
         }
