@@ -2,6 +2,7 @@ package moe.tachyon.ctf.plugin
 
 import moe.tachyon.ctf.plugin.bot.createBots
 import org.bukkit.Bukkit
+import taboolib.common.platform.function.warning
 import taboolib.common.util.randomDouble
 
 const val PLAYER_PREPARE_MESSAGE = "I'm ready!"
@@ -40,6 +41,16 @@ fun addToWaitList(playerName: String, setting: MatchSetting) = synchronized(wait
 fun removeFromWaitList(playerName: String) = synchronized(waitList)
 {
     waitList.remove(playerName)
+}
+
+private fun notifyMatchCreationFailure(error: Throwable, vararg playerNames: String)
+{
+    val message = error.message ?: error::class.simpleName ?: "未知错误"
+    warning("创建比赛失败：$message")
+    playerNames.forEach()
+    { playerName ->
+        Bukkit.getPlayer(playerName)?.sendMessage("§c创建比赛失败：$message")
+    }
 }
 
 fun processWaitList() = synchronized(waitList)
@@ -91,13 +102,20 @@ fun processWaitList() = synchronized(waitList)
 
         if (setting.enemy is Enemy.Specific && (setting.enemy.group.isNone || setting.enemy.group.isBot))
         {
-            makeSelfGame(
-                playerName,
-                setting.group,
-                setting.enemy.group,
-                setting.playersPerGroup,
-                setting.mapType
-            )
+            try
+            {
+                makeSelfGame(
+                    playerName,
+                    setting.group,
+                    setting.enemy.group,
+                    setting.playersPerGroup,
+                    setting.mapType
+                )
+            }
+            catch (e: Throwable)
+            {
+                notifyMatchCreationFailure(e, playerName)
+            }
 
             waitList -= playerName
             list[i] = list[i].copy(third = false)
@@ -111,7 +129,14 @@ fun processWaitList() = synchronized(waitList)
 
             if (isGameSettingMatched(setting, setting2))
             {
-                makeGame(playerName, setting, playerName2, setting2)
+                try
+                {
+                    makeGame(playerName, setting, playerName2, setting2)
+                }
+                catch (e: Throwable)
+                {
+                    notifyMatchCreationFailure(e, playerName, playerName2)
+                }
                 waitList -= playerName
                 waitList -= playerName2
                 list[i] = list[i].copy(third = false)
