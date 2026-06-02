@@ -3,6 +3,7 @@ package moe.tachyon.ctf.plugin
 import org.bukkit.Bukkit
 import org.bukkit.WorldCreator
 import org.bukkit.generator.ChunkGenerator
+import taboolib.common.platform.function.submit
 import taboolib.common.platform.function.warning
 import java.io.File
 
@@ -68,7 +69,7 @@ fun removeGameWorld(name: String)
     {
         worlds.remove(name)
         val worldDir = File(Bukkit.getWorldContainer(), name)
-        if (worldDir.exists()) worldDir.deleteRecursively()
+        if (worldDir.exists()) submit(async = true) { worldDir.deleteRecursively() }
         return
     }
 
@@ -80,7 +81,7 @@ fun removeGameWorld(name: String)
     if (unloaded)
     {
         val worldDir = File(Bukkit.getWorldContainer(), name)
-        if (worldDir.exists()) worldDir.deleteRecursively()
+        if (worldDir.exists()) submit(async = true) { worldDir.deleteRecursively() }
         worlds.remove(name)
         println("维度 $name 已卸载！")
     }
