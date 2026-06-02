@@ -21,6 +21,8 @@ fun generateGameWorld(
     record: GameRecord
 ): GameWorld
 {
+    val name = generateSequence { "$name-${randomId()}" }.first { getGameWorld(it) == null }
+
     val serverFolder = Bukkit.getWorldContainer()
     val templateDir = File(serverFolder, TEMPLATE_WORLD_NAME)
     val newWorldDir = File(serverFolder, name)

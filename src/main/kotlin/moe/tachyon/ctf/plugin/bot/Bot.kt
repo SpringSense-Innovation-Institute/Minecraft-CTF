@@ -2,12 +2,12 @@ package moe.tachyon.ctf.plugin.bot
 
 import moe.tachyon.ctf.plugin.GameWorld
 import moe.tachyon.ctf.plugin.LocationStatus
+import moe.tachyon.ctf.plugin.randomId
 import moe.tachyon.ctf.plugin.teleport
+import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import taboolib.common.platform.function.submit
 import taboolib.common.platform.function.warning
-import kotlin.random.Random
-import kotlin.random.nextULong
 
 abstract class Bot(
     val world: GameWorld
@@ -15,10 +15,11 @@ abstract class Bot(
 {
     companion object
     {
-        fun randomBotName() = "CTF-Bot-" + Random.nextULong().toString(36).takeLast(4).padStart(4, '0')
+        fun randomBotName(): String =
+            generateSequence { "CTF-Bot-" + randomId() }.first { Bukkit.getPlayer(it) == null }
     }
 
-    val name: String = randomBotName()
+    val name: String by lazy(::randomBotName)
 
     private var init = true
     protected var player: Player? = null

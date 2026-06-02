@@ -130,14 +130,14 @@ data class GameSettingData(
     var randomMap: Boolean = true,
 )
 
-private fun randomId() = Random.nextULong().toString(36).take(4).padStart(4, '0')
+fun randomId() = Random.nextULong().toString(36).takeLast(4).padStart(4, '0')
 
 fun HumanEntity.replayRecord(file: File)
 {
     var world: GameWorld? = null
     val record = GameRecord.file({ world!! }, file)
     world = generateGameWorld(
-        name = "replay-${file.nameWithoutExtension}-${randomId()}",
+        name = "replay-${file.nameWithoutExtension}",
         setting = GameSettingData(),
         record = record,
     )
@@ -169,7 +169,7 @@ fun createGame(data: GameSettingData, timeout: Boolean): GameWorld
     val prefix = practiceMode?.name?.plus("_") ?: ""
     val record = GameRecord.file({ world!! }, "${prefix}${format.format(date)}_${data.leftGroup.displayName}-vs-${data.rightGroup.displayName}_${randomId()}")
     world = generateGameWorld(
-        "game-${data.leftGroup.displayName}-vs-${data.rightGroup.displayName}-${randomId()}",
+        "game-${data.leftGroup.displayName}-vs-${data.rightGroup.displayName}",
         data,
         record,
     )

@@ -271,12 +271,11 @@ class RecordWriter(
     val period: Long,
 ): AutoCloseable, Closeable
 {
-    companion object
+    private val tmpFile by lazy()
     {
-        fun randomName() = Random.nextULong().toString(36).takeLast(4)
+        generateSequence { File(file.absolutePath + "." + randomId() + ".tmp") }.first { !it.exists() }
     }
 
-    private val tmpFile = File(file.absolutePath + "." + randomName() + ".tmp")
     private val tmpFileOutput by lazy {
         if (tmpFile.exists()) tmpFile.delete()
         DataOutputStream(tmpFile.outputStream())
@@ -367,8 +366,14 @@ class RecordReader(
         }
     }
 
-    private val tmpFile = File(file.absolutePath + "." + RecordWriter.randomName() + ".tmp")
-    private val tmpFileInput by lazy {
+    private val tmpFile by lazy()
+    {
+        generateSequence { File(file.absolutePath + "." + randomId() + ".tmp") }
+            .first { !it.exists() }
+    }
+
+    private val tmpFileInput by lazy()
+    {
         if (tmpFile.exists()) tmpFile.delete()
         DataInputStream(file.inputStream()).use()
         {
