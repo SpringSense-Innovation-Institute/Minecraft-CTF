@@ -3,10 +3,10 @@ package moe.tachyon.ctf.plugin
 import com.sun.net.httpserver.HttpServer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import moe.tachyon.ctf.plugin.web.SessionManager
 import moe.tachyon.ctf.plugin.web.setupServer
 import org.bukkit.Bukkit
 import org.bukkit.World
-import org.bukkit.entity.Player
 import taboolib.common.platform.Plugin
 import taboolib.common.platform.function.info
 import taboolib.common.platform.function.onlinePlayers
@@ -24,6 +24,7 @@ object MinecraftCtfPlugin: Plugin()
 
     var matchTask: PlatformExecutor.PlatformTask? = null
     var trekTask: PlatformExecutor.PlatformTask? = null
+    var sessionCleanupTask: PlatformExecutor.PlatformTask? = null
 
     val config by lazy()
     {
@@ -73,6 +74,11 @@ object MinecraftCtfPlugin: Plugin()
             }
         }
 
+        sessionCleanupTask = submit(period = 6000, async = true)
+        {
+            SessionManager.cleanExpiredSessions()
+        }
+
         server.setupServer()
 
         info("Successfully running Minecraft-CTF-Plugin!")
@@ -90,6 +96,8 @@ object MinecraftCtfPlugin: Plugin()
         }
         matchTask?.cancel()
         trekTask?.cancel()
+        sessionCleanupTask?.cancel()
+        SessionManager.clearAllSessions()
         server.stop(0)
     }
 }

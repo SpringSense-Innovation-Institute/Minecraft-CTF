@@ -37,6 +37,12 @@ private fun onPlayerJoin(event: PlayerJoinEvent)
     if (event.player.isOp) blockedUsers += event.player.name
 }
 
+@SubscribeEvent
+private fun onPlayerQuit(event: PlayerQuitEvent)
+{
+    blockedUsers -= event.player.name
+}
+
 /**
  * 拦截未登录玩家的操作
  * 

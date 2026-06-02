@@ -330,8 +330,9 @@ class GameWorld(
     {
         if (gameStatus == GameStatus.NONE) return
 
+        val wasPreparing = gameStatus == GameStatus.PREPARING
         gameStatus = GameStatus.NONE
-        if (gameStatus == GameStatus.PREPARING)
+        if (wasPreparing)
         {
             broadcastMessage("&c游戏已取消".colored())
             getPlayers().forEach()
@@ -366,6 +367,15 @@ class GameWorld(
                 player.sendTitle("&6${if (winner == PlayerTeam.LEFT) leftGroup.displayName else rightGroup.displayName} 获胜!".colored(), "", 10, 70, 20)
 
             player.inventory.clear()
+        }
+
+        submit(delay = 200)
+        {
+            if (gameStatus == GameStatus.NONE)
+            {
+                getBukkitPlayers().forEach { it.teleportToWorld() }
+                removeGameWorld(name)
+            }
         }
     }
 

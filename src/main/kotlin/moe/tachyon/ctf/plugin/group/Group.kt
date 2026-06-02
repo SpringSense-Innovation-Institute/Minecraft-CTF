@@ -113,9 +113,9 @@ fun deletePlayer(playerId: String): Unit = synchronized(lock)
     val players = getAllPlayers().toMutableList()
     val idx = players.indexOfFirst { it.id == playerId }
     if (idx == -1) error("玩家不存在")
+    val player = players[idx]
     players.removeAt(idx)
     saveAllPlayers(players)
-    // Also remove from any group
     val groups = getGroups().toMutableList()
     var changed = false
     groups.forEachIndexed { gi, g ->
@@ -127,6 +127,10 @@ fun deletePlayer(playerId: String): Unit = synchronized(lock)
         }
     }
     if (changed) saveGroups(groups)
+    runCatching {
+        val scoreboard = Bukkit.getScoreboardManager()?.mainScoreboard ?: return@runCatching
+        scoreboard.teams.forEach { it.removeEntry(player.name) }
+    }
 }
 
 fun renamePlayer(playerId: String, newName: String): Unit = synchronized(lock)
@@ -170,8 +174,13 @@ fun deleteGroup(groupId: Int): Unit = synchronized(lock)
     val groups = getGroups().toMutableList()
     val idx = groups.indexOfFirst { it.id == groupId }
     if (idx == -1) error("分组不存在")
+    val group = groups[idx]
     groups.removeAt(idx)
     saveGroups(groups)
+    runCatching {
+        val scoreboard = Bukkit.getScoreboardManager()?.mainScoreboard ?: return@runCatching
+        scoreboard.getTeam(group.name)?.unregister()
+    }
 }
 
 fun renameGroup(groupId: Int, newName: String): Unit = synchronized(lock)
@@ -180,8 +189,18 @@ fun renameGroup(groupId: Int, newName: String): Unit = synchronized(lock)
     val groups = getGroups().toMutableList()
     val group = groups.firstOrNull { it.id == groupId } ?: error("分组不存在")
     if (groups.any { it.name == newName && it.id != groupId }) error("分组名称已存在")
+    val oldName = group.name
     groups[groups.indexOf(group)] = group.copy(name = newName)
     saveGroups(groups)
+    runCatching {
+        val scoreboard = Bukkit.getScoreboardManager()?.mainScoreboard ?: return@runCatching
+        val oldTeam = scoreboard.getTeam(oldName)
+        val entries = oldTeam?.entries?.toList() ?: emptyList()
+        oldTeam?.unregister()
+        val newTeam = scoreboard.registerNewTeam(newName)
+        entries.forEach { newTeam.addEntry(it) }
+        newTeam.prefix = "&6[$newName] ".colored()
+    }
 }
 
 fun addGroupMember(groupId: Int, playerName: String): Unit = synchronized(lock)
@@ -205,9 +224,13 @@ fun removeGroupMember(groupId: Int, playerId: String): Unit = synchronized(lock)
     val groupIdx = groups.indexOfFirst { it.id == groupId }
     if (groupIdx == -1) error("分组不存在")
     val group = groups[groupIdx]
-    if (!group.players.any { it.id == playerId }) error("玩家不在该分组中")
+    val player = group.players.firstOrNull { it.id == playerId } ?: error("玩家不在该分组中")
     groups[groupIdx] = group.copy(players = group.players.filter { it.id != playerId })
     saveGroups(groups)
+    runCatching {
+        val scoreboard = Bukkit.getScoreboardManager()?.mainScoreboard ?: return@runCatching
+        scoreboard.getTeam(group.name)?.removeEntry(player.name)
+    }
 }
 
 @SubscribeEvent
