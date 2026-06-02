@@ -354,6 +354,7 @@ class GameWorld(
                 val p = Bukkit.getPlayer(it) ?: return@forEach
                 if (p.world.name == name) p.teleportToWorld()
             }
+            removeGameWorld(name)
             return
         }
 
