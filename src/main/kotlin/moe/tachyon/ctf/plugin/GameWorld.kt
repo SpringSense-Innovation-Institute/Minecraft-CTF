@@ -12,6 +12,7 @@ import taboolib.common.platform.function.warning
 import taboolib.common.platform.service.PlatformExecutor
 import taboolib.module.chat.colored
 import taboolib.platform.util.buildItem
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
@@ -25,8 +26,8 @@ class GameWorld(
     val practice: String?,
 )
 {
-    private val leftGroupPlayers = mutableSetOf<String>()
-    private val rightGroupPlayers = mutableSetOf<String>()
+    private val leftGroupPlayers = ConcurrentHashMap.newKeySet<String>()
+    private val rightGroupPlayers = ConcurrentHashMap.newKeySet<String>()
 
     fun addPlayer(player: String, group: Group)
     {
