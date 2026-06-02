@@ -2,6 +2,26 @@ package moe.tachyon.ctf.plugin.web
 
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import java.util.concurrent.SynchronousQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+
+private val webThreadCounter = AtomicInteger(1)
+
+private var webExecutor: ThreadPoolExecutor? = null
+
+private fun createWebExecutor() = ThreadPoolExecutor(
+    8,
+    128,
+    60L,
+    TimeUnit.SECONDS,
+    SynchronousQueue(),
+    { task ->
+        Thread(task, "Minecraft-CTF-Web-${webThreadCounter.getAndIncrement()}").apply { isDaemon = true }
+    },
+    ThreadPoolExecutor.CallerRunsPolicy()
+)
 
 fun HttpExchange.args() =
     requestURI.query
@@ -31,6 +51,14 @@ fun HttpServer.setupServer()
     statistics()
     admin()
 
-    executor = null
+    val executor = createWebExecutor()
+    webExecutor = executor
+    this.executor = executor
     start()
+}
+
+fun shutdownWebExecutor()
+{
+    webExecutor?.shutdownNow()
+    webExecutor = null
 }

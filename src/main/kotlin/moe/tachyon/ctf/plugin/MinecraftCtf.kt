@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpServer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import moe.tachyon.ctf.plugin.web.SessionManager
+import moe.tachyon.ctf.plugin.web.shutdownWebExecutor
 import moe.tachyon.ctf.plugin.web.setupServer
 import org.bukkit.Bukkit
 import org.bukkit.World
@@ -99,6 +100,7 @@ object MinecraftCtfPlugin: Plugin()
         sessionCleanupTask?.cancel()
         SessionManager.clearAllSessions()
         server.stop(0)
+        shutdownWebExecutor()
     }
 }
 
