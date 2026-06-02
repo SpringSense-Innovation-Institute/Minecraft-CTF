@@ -38,12 +38,13 @@ fun generateGameWorld(
     val creator = WorldCreator(name)
     creator.generateStructures(false)
     creator.generator(object: ChunkGenerator(){})
-    val world = Bukkit.createWorld(creator)
-    if (world != null)
+    val world = Bukkit.createWorld(creator) ?: run()
     {
-        world.isAutoSave = false
-        println("维度 $name 创建完毕！")
+        if (newWorldDir.exists()) newWorldDir.deleteRecursively()
+        error("维度 $name 创建失败！")
     }
+    world.isAutoSave = false
+    println("维度 $name 创建完毕！")
 
     val gameWorld = GameWorld(
         name = name,
@@ -60,7 +61,14 @@ fun generateGameWorld(
 
 fun removeGameWorld(name: String)
 {
-    val world = Bukkit.getWorld(name) ?: return
+    val world = Bukkit.getWorld(name)
+    if (world == null)
+    {
+        worlds.remove(name)
+        val worldDir = File(Bukkit.getWorldContainer(), name)
+        if (worldDir.exists()) worldDir.deleteRecursively()
+        return
+    }
 
     world.players.forEach()
     { player ->
