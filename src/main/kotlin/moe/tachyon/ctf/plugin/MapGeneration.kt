@@ -20,6 +20,33 @@ import kotlin.concurrent.atomics.decrementAndFetch
 import kotlin.concurrent.atomics.incrementAndFetch
 import kotlin.random.Random
 
+private class MapGenerationException(message: String): IllegalStateException(message)
+
+private fun GameWorld.randomLocations(
+    xRange: IntRange,
+    zRange: IntRange,
+    count: Int,
+    label: String,
+    predicate: (Location) -> Boolean,
+): List<Location>
+{
+    if (count <= 0) return emptyList()
+
+    val candidates = xRange.flatMap()
+    { x ->
+        zRange.mapNotNull()
+        { z ->
+            val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
+            if (predicate(location)) location else null
+        }
+    }.shuffled()
+
+    if (candidates.size < count)
+        throw MapGenerationException("$label 可用位置不足，需要 $count 个，实际只有 ${candidates.size} 个")
+
+    return candidates.take(count)
+}
+
 fun GameWorld.clearMap()
 {
     for (x in -24..24)
@@ -57,8 +84,6 @@ fun GameWorld.clearMap()
 
 fun GameWorld.generateMap()
 {
-    var count = 0
-
     val leftFlags = mutableListOf<Pair<Int, Int>>()
     val leftTarget = mutableListOf<Pair<Int, Int>>()
     val rightFlags = mutableListOf<Pair<Int, Int>>()
@@ -76,19 +101,15 @@ fun GameWorld.generateMap()
     }
     else // 随机地图生成
     {
+        val reserved = mutableSetOf<Pair<Int, Int>>()
         val generate: (IntRange, IntRange) -> List<Pair<Int, Int>> = { xRange, zRange ->
-            val list = mutableListOf<Pair<Int, Int>>()
-            while (list.size < 8)
-            {
-                val x = xRange.random()
-                val z = zRange.random()
-                val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
+            randomLocations(xRange, zRange, 8, "旗帜/目标点")
+            { location ->
                 val location1 = location.clone().add(0.0, 1.0, 0.0)
-                if (location.block.type == Material.GRASS_BLOCK && location1.block.type.isAir &&
-                    !listOf(list, leftFlags, rightFlags, leftTarget, rightTarget).any { it.contains(Pair(x, z)) })
-                    list += Pair(x, z)
-            }
-            list
+                location.block.type == Material.GRASS_BLOCK &&
+                    location1.block.type.isAir &&
+                    (location.blockX to location.blockZ) !in reserved
+            }.map { it.blockX to it.blockZ }.also { reserved += it }
         }
         leftFlags += generate((-24..-12), (-36..36))
         rightFlags += generate((12..24), (-36..36))
@@ -118,18 +139,20 @@ fun GameWorld.generateMap()
         clone().add(0.0, 2.0, 0.0).block.type.isAir
 
     // 生成树
-    count = 0
-    generateTree@while (count < 10)
+    fun Location.hasTreeSpace(): Boolean
     {
-        val x = (1..24).random() * if (count >= 5) -1 else 1
-        val z = (-36..36).random()
-        val high = (0..3).random()
-        val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
-
         for (dx in -1..1)
             for (dz in -1..1)
-                if (!location.clone().add(dx.toDouble(), 0.0, dz.toDouble()).isEmpty())
-                    continue@generateTree
+                if (!clone().add(dx.toDouble(), 0.0, dz.toDouble()).isEmpty())
+                    return false
+        return true
+    }
+
+    val treeLocations = randomLocations(1..24, -36..36, 5, "右半场树") { it.hasTreeSpace() } +
+        randomLocations(-24..-1, -36..36, 5, "左半场树") { it.hasTreeSpace() }
+    treeLocations.forEach()
+    { location ->
+        val high = (0..3).random()
 
         for (dx in -1..1)
             for (dz in -1..1)
@@ -138,38 +161,25 @@ fun GameWorld.generateMap()
 
         for (y in 1..high+1)
             location.clone().add(0.0, y.toDouble(), 0.0).block.type = Material.OAK_LOG
-
-        count++
     }
 
     // 生成pitcher plant
-    count = 0
-    generatePitcher@while (count < 10)
-    {
-        val x = (1..24).random() * if (count >= 5) -1 else 1
-        val z = (-36..36).random()
-        val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
-        if (!location.isEmpty())
-            continue@generatePitcher
-
+    val pitcherLocations = randomLocations(1..24, -36..36, 5, "右半场 pitcher plant") { it.isEmpty() } +
+        randomLocations(-24..-1, -36..36, 5, "左半场 pitcher plant") { it.isEmpty() }
+    pitcherLocations.forEach()
+    { location ->
         location.clone().add(0.0, 1.0, 0.0).block.blockData =
             Bukkit.createBlockData(Material.PITCHER_PLANT).let { it as Bisected }.also { it.half = Bisected.Half.BOTTOM }
 
         location.clone().add(0.0, 2.0, 0.0).block.blockData =
             Bukkit.createBlockData(Material.PITCHER_PLANT).let { it as Bisected }.also { it.half = Bisected.Half.TOP }
-
-        count++
     }
 
     // 生成哞菇
-    count = 0
-    generateMushroom@while (count < playerCountPerGroup * 2)
-    {
-        val x = (1..24).random() * if (count >= playerCountPerGroup) -1 else 1
-        val z = (-36..36).random()
-        val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
-        if (!location.isEmpty())
-            continue@generateMushroom
+    val mushroomLocations = randomLocations(1..24, -36..36, playerCountPerGroup, "右半场哞菇") { it.isEmpty() } +
+        randomLocations(-24..-1, -36..36, playerCountPerGroup, "左半场哞菇") { it.isEmpty() }
+    mushroomLocations.forEach()
+    { location ->
         val e = location.world!!.spawnEntity(location.add(0.0, 1.0, 0.0), EntityType.MOOSHROOM) as MushroomCow
         e.variant = if (randomDouble() < 0.5) MushroomCow.Variant.BROWN else MushroomCow.Variant.RED
 
@@ -181,49 +191,37 @@ fun GameWorld.generateMap()
         e.clearGoalAi()
         e.clearTargetAi()
         e.addTargetAi(CowAI(this, e), 1)
-        count++
     }
 
     // 生成蠹虫
-    count = 0
     val bugCount = AtomicInt(0)
-    generateSilverfish@while (count < playerCountPerGroup * 2)
-    {
+    val silverfishLocations = randomLocations(1..24, -36..36, playerCountPerGroup, "右半场蠹虫") { it.isEmpty() } +
+        randomLocations(-24..-1, -36..36, playerCountPerGroup, "左半场蠹虫") { it.isEmpty() }
+    silverfishLocations.forEach()
+    { location ->
         bugCount.incrementAndFetch()
-        val x = (1..24).random() * if (count >= playerCountPerGroup) -1 else 1
-        val z = (-36..36).random()
-        val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
-        if (!location.isEmpty())
-            continue@generateSilverfish
 
         val e = location.world!!.spawnEntity(location.add(0.0, 1.0, 0.0), EntityType.SILVERFISH) as Silverfish
         e.clearGoalAi()
         e.clearTargetAi()
         e.addTargetAi(SilverfishAI(this, e, bugCount), 1)
-        count++
     }
 
     // 生成发光鱿鱼
-    count = 0
-    generateSquid@while (count < 5)
+    randomLocations(0..0, -36..36, 5, "发光鱿鱼")
     {
-        val z = (-36..36).random()
-        val location = Location(bukkitWorld(), 0.5, -1.0, z.toDouble())
-        if (!location.block.type.isWater()) continue@generateSquid
+        Location(bukkitWorld(), 0.5, -1.0, it.blockZ.toDouble()).block.type.isWater()
+    }.forEach()
+    {
+        val location = Location(bukkitWorld(), 0.5, -1.0, it.blockZ.toDouble())
         location.world!!.spawnEntity(location, EntityType.GLOW_SQUID)
-        count++
     }
 
     // 生成蜂蜜块
-    count = 0
-    generateWeb@while (count < 16)
-    {
-        val x = (1..24).random() * if (count >= 8) -1 else 1
-        val z = (-36..36).random()
-        val location = Location(bukkitWorld(), x.toDouble(), 0.0, z.toDouble())
-        if (!location.isEmpty())
-            continue@generateWeb
-
+    val honeyLocations = randomLocations(1..24, -36..36, 8, "右半场蜂蜜块") { it.isEmpty() } +
+        randomLocations(-24..-1, -36..36, 8, "左半场蜂蜜块") { it.isEmpty() }
+    honeyLocations.forEach()
+    { location ->
         location.block.type = Material.HONEY_BLOCK
         // 让蜂蜜块随机蔓延
         val list = mutableListOf(location.clone())
@@ -243,7 +241,6 @@ fun GameWorld.generateMap()
             loc.block.type = Material.HONEY_BLOCK
             list += loc
         }
-        count++
     }
 }
 
