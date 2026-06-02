@@ -24,14 +24,18 @@ class GameWorld(
     val practice: String?,
 )
 {
+    private val playerStateLock = Any()
     private val leftGroupPlayers = mutableSetOf<String>()
     private val rightGroupPlayers = mutableSetOf<String>()
 
     fun addPlayer(player: String, group: Group)
     {
         val p = Bukkit.getPlayer(player) ?: return
-        if (group == leftGroup) leftGroupPlayers += player
-        else if (group == rightGroup) rightGroupPlayers += player
+        synchronized(playerStateLock)
+        {
+            if (group == leftGroup) leftGroupPlayers += player
+            else if (group == rightGroup) rightGroupPlayers += player
+        }
         p.teleport(LocationStatus.IN_FIELD.location(this))
         updateTeam()
     }
@@ -63,17 +67,20 @@ class GameWorld(
     fun broadcastMessage(message: String)
         = bukkitWorld()?.players?.forEach { it.sendMessage(message) }
 
-    fun getPlayerTeam(player: String): PlayerTeam = when (player)
+    fun getPlayerTeam(player: String): PlayerTeam = synchronized(playerStateLock)
     {
-        in leftGroupPlayers -> PlayerTeam.LEFT
-        in rightGroupPlayers -> PlayerTeam.RIGHT
-        else -> PlayerTeam.NONE
+        when (player)
+        {
+            in leftGroupPlayers -> PlayerTeam.LEFT
+            in rightGroupPlayers -> PlayerTeam.RIGHT
+            else -> PlayerTeam.NONE
+        }
     }
 
-    fun leftGroupPlayers() = leftGroupPlayers.toList()
-    fun rightGroupPlayers() = rightGroupPlayers.toList()
-    fun leftGroupBukkitPlayers() = leftGroupPlayers.mapNotNull(Bukkit::getPlayer).filter { it.world.name == name }
-    fun rightGroupBukkitPlayers() = rightGroupPlayers.mapNotNull(Bukkit::getPlayer).filter { it.world.name == name }
+    fun leftGroupPlayers() = synchronized(playerStateLock) { leftGroupPlayers.toList() }
+    fun rightGroupPlayers() = synchronized(playerStateLock) { rightGroupPlayers.toList() }
+    fun leftGroupBukkitPlayers() = leftGroupPlayers().mapNotNull(Bukkit::getPlayer).filter { it.world.name == name }
+    fun rightGroupBukkitPlayers() = rightGroupPlayers().mapNotNull(Bukkit::getPlayer).filter { it.world.name == name }
     fun bukkitWorld(): World? = Bukkit.getWorld(name)
 
     fun updateTeam()
@@ -95,15 +102,22 @@ class GameWorld(
         gameStatus = GameStatus.PREPARING
         broadcastMessage("&6${leftGroup.displayName} VS ${rightGroup.displayName} 的对决即将开始，请做好准备!".colored())
 
-        preparedPlayers.clear()
+        synchronized(playerStateLock)
+        {
+            preparedPlayers.clear()
+        }
         if (timeout) submit(delay = 600)
         {
             if (gameStatus == GameStatus.PREPARING)
             {
                 if (leftGroup.isNone && rightGroup.isNone) return@submit
 
-                val leftGroupIsReady = leftGroupPlayers.size == playerCountPerGroup && leftGroupPlayers.all { it in preparedPlayers } || leftGroup.isNone
-                val rightGroupIsReady = rightGroupPlayers.size == playerCountPerGroup && rightGroupPlayers.all { it in preparedPlayers } || rightGroup.isNone
+                val (leftGroupIsReady, rightGroupIsReady) = synchronized(playerStateLock)
+                {
+                    val leftReady = leftGroupPlayers.size == playerCountPerGroup && leftGroupPlayers.all { it in preparedPlayers } || leftGroup.isNone
+                    val rightReady = rightGroupPlayers.size == playerCountPerGroup && rightGroupPlayers.all { it in preparedPlayers } || rightGroup.isNone
+                    leftReady to rightReady
+                }
 
                 if (!leftGroupIsReady || !rightGroupIsReady)
                     stopGame(PlayerTeam.NONE)
@@ -117,20 +131,29 @@ class GameWorld(
 
         playerName?.let()
         {
-            if (playerName in preparedPlayers) return
             val team = getPlayerTeam(playerName)
             if (team == PlayerTeam.NONE) return
-            preparedPlayers.add(playerName)
+            val preparedCount = synchronized(playerStateLock)
+            {
+                if (playerName in preparedPlayers) return
+                preparedPlayers.add(playerName)
+                preparedPlayers.size
+            }
 
             broadcastMessage(
-                "${if (team == PlayerTeam.LEFT) "&c" else "&b"}$playerName &6is ready! &7(${preparedPlayers.size}/${playerCountPerGroup * 2})".colored()
+                "${if (team == PlayerTeam.LEFT) "&c" else "&b"}$playerName &6is ready! &7($preparedCount/${playerCountPerGroup * 2})".colored()
             )
         }
 
         val sb = StringBuilder()
         sb.append("&6已准备: ")
-        leftGroupPlayers().filter { preparedPlayers.contains(it) }.forEach { sb.append("&c$it &6") }
-        rightGroupPlayers().filter { preparedPlayers.contains(it) }.forEach { sb.append("&b$it &6") }
+        val (leftPrepared, rightPrepared) = synchronized(playerStateLock)
+        {
+            leftGroupPlayers.filter { preparedPlayers.contains(it) } to
+                rightGroupPlayers.filter { preparedPlayers.contains(it) }
+        }
+        leftPrepared.forEach { sb.append("&c$it &6") }
+        rightPrepared.forEach { sb.append("&b$it &6") }
         broadcastMessage(sb.toString().colored())
 
         val status = getPlayersPreparedStatus()
@@ -158,30 +181,36 @@ class GameWorld(
     {
         val left = mutableSetOf<String>()
         val right = mutableSetOf<String>()
+        val (leftSnapshot, rightSnapshot, preparedSnapshot) = synchronized(playerStateLock)
+        {
+            Triple(leftGroupPlayers.toSet(), rightGroupPlayers.toSet(), preparedPlayers.toSet())
+        }
         getPlayers().forEach()
         {
-            when (getPlayerTeam(it))
+            when (it)
             {
-                PlayerTeam.LEFT -> left.add(it)
-                PlayerTeam.RIGHT -> right.add(it)
-                PlayerTeam.NONE -> {}
+                in leftSnapshot -> left.add(it)
+                in rightSnapshot -> right.add(it)
             }
         }
 
         return PlayerPreparedStatus(
-            leftGroupPrepared = left.filter { it in preparedPlayers }.toSet(),
-            leftGroupUnprepared = left.filter { it !in preparedPlayers }.toSet(),
-            rightGroupPrepared = right.filter { it in preparedPlayers }.toSet(),
-            rightGroupUnprepared = right.filter { it !in preparedPlayers }.toSet(),
+            leftGroupPrepared = left.filter { it in preparedSnapshot }.toSet(),
+            leftGroupUnprepared = left.filter { it !in preparedSnapshot }.toSet(),
+            rightGroupPrepared = right.filter { it in preparedSnapshot }.toSet(),
+            rightGroupUnprepared = right.filter { it !in preparedSnapshot }.toSet(),
         )
     }
 
 
     fun onPlayerQuit(name: String)
     {
-        preparedPlayers -= name
-        leftGroupPlayers -= name
-        rightGroupPlayers -= name
+        synchronized(playerStateLock)
+        {
+            preparedPlayers -= name
+            leftGroupPlayers -= name
+            rightGroupPlayers -= name
+        }
         updateTeam()
         playerPrepared(null)
         checkGameWorldRecycle(this.name)
@@ -197,7 +226,11 @@ class GameWorld(
         if (!gameStatus.inGame())
         {
             player.gameMode = GameMode.CREATIVE
-            if (gameStatus.preparing() && (player.name in leftGroupPlayers || player.name in rightGroupPlayers))
+            val inGameTeam = synchronized(playerStateLock)
+            {
+                player.name in leftGroupPlayers || player.name in rightGroupPlayers
+            }
+            if (gameStatus.preparing() && inGameTeam)
                 player.sendMessage(GAME_PREPARED_MESSAGE)
             return
         }
@@ -377,8 +410,12 @@ class GameWorld(
 
     private fun getWinner(end: Boolean): PlayerTeam?
     {
-        val leftTeamPlayer = getPlayers().count { it in leftGroupPlayers }
-        val rightTeamPlayer = getPlayers().count { it in rightGroupPlayers }
+        val (leftSnapshot, rightSnapshot) = synchronized(playerStateLock)
+        {
+            leftGroupPlayers.toSet() to rightGroupPlayers.toSet()
+        }
+        val leftTeamPlayer = getPlayers().count { it in leftSnapshot }
+        val rightTeamPlayer = getPlayers().count { it in rightSnapshot }
 
         val leftTeamEmpty = leftTeamPlayer == 0 && leftGroup !is Group.None
         val rightTeamEmpty = rightTeamPlayer == 0 && rightGroup !is Group.None

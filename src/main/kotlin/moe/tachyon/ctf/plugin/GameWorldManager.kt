@@ -9,10 +9,16 @@ import java.io.File
 private val worlds = mutableMapOf<String, GameWorld>()
 
 fun getGameWorld(name: String): GameWorld?
-    = worlds[name]
+    = synchronized(worlds)
+    {
+        worlds[name]
+    }
 
 fun getGameWorlds(): List<GameWorld>
-    = worlds.values.toList()
+    = synchronized(worlds)
+    {
+        worlds.values.toList()
+    }
 
 private const val TEMPLATE_WORLD_NAME = "template_world"
 fun generateGameWorld(
@@ -54,7 +60,10 @@ fun generateGameWorld(
         playerCountPerGroup = setting.playerCountPerGroup,
         practice = practiceMode?.name,
     )
-    worlds[name] = gameWorld
+    synchronized(worlds)
+    {
+        worlds[name] = gameWorld
+    }
     return gameWorld
 }
 
@@ -71,7 +80,10 @@ fun removeGameWorld(name: String)
     {
         val worldDir = File(Bukkit.getWorldContainer(), name)
         if (worldDir.exists()) worldDir.deleteRecursively()
-        worlds.remove(name)
+        synchronized(worlds)
+        {
+            worlds.remove(name)
+        }
         println("维度 $name 已卸载！")
     }
     else
