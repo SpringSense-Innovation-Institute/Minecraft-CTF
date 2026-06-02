@@ -17,6 +17,7 @@ import taboolib.common.platform.command.PermissionDefault
 import taboolib.common.platform.command.simpleCommand
 import taboolib.common.platform.event.EventPriority
 import taboolib.common.platform.event.SubscribeEvent
+import taboolib.common.platform.function.submit
 import java.util.*
 
 /**
@@ -49,8 +50,8 @@ private inline fun check(player: Player, event: Cancellable)
 {
     if (player.name !in blockedUsers)
         return
-    player.sendMessage("§c请先登录再进行操作！")
     event.isCancelled = true
+    submit { player.sendMessage("§c请先登录再进行操作！") }
 }
 
 /**
