@@ -166,12 +166,17 @@ private fun onPlayerMatch(event: AsyncPlayerChatEvent)
 
     event.isCancelled = true
 
-    val illegal = { event.player.sendMessage("§c匹配参数错误！正确格式：match enemy:<enemy> players:<count> map:<mapType>") }
+    val illegal =
+    {
+        event.player.sendMessage(
+            "§c匹配参数错误！正确格式：match enemy:<enemy> players:<$MIN_PLAYER_COUNT_PER_GROUP-$MAX_PLAYER_COUNT_PER_GROUP> map:<mapType>"
+        )
+    }
 
     val args = msg.split(" ").filter { ':' in it }.map { it.split(":") }.associate { it[0] to it[1] }
     val group = getPlayerGroup(event.player.name)?.id ?: return event.player.sendMessage("§c你没有加入任何队伍，无法匹配！")
     val enemyTeam = args["enemy"] ?: return illegal()
-    val count = args["players"]?.toIntOrNull()?.takeIf { it in 0..5 } ?: return illegal()
+    val count = args["players"]?.toIntOrNull()?.takeIf(::isValidPlayerCountPerGroup) ?: return illegal()
     val map = args["map"] ?: return illegal()
 
     val enemyMode = when (enemyTeam)

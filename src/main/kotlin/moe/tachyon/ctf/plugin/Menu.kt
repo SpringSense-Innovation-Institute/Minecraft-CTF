@@ -14,6 +14,12 @@ import taboolib.module.ui.type.PageableChest
 import taboolib.platform.util.buildItem
 import taboolib.platform.util.submit
 
+private val PLAYER_COUNT_INPUT_ERROR =
+    "请输入 $MIN_PLAYER_COUNT_PER_GROUP 到 $MAX_PLAYER_COUNT_PER_GROUP 之间的整数!"
+
+private fun String.toPlayerCountOrNull(): Int? =
+    toIntOrNull()?.takeIf(::isValidPlayerCountPerGroup)
+
 fun HumanEntity.openMenu()
 {
     if (world == mainWorld) openMainMenu()
@@ -336,11 +342,11 @@ private fun HumanEntity.openPlayerCountInputMenu(): Unit = openMenu<Anvil>()
 
     onRename()
     { player, text, inventory ->
-        if (text.toIntOrNull() == null)
+        if (text.toPlayerCountOrNull() == null)
         {
             inventory.setItem(2, buildItem(Material.RED_STAINED_GLASS_PANE)
             {
-                name = "请输入一个有效的整数!"
+                name = PLAYER_COUNT_INPUT_ERROR
             })
         }
         else
@@ -355,9 +361,9 @@ private fun HumanEntity.openPlayerCountInputMenu(): Unit = openMenu<Anvil>()
     onClick(2)
     {
         val text = it.inventory.getItem(2)?.itemMeta?.displayName
-        if (text?.toIntOrNull() == null)
-            return@onClick it.inventory.setItem(2, buildItem(Material.RED_STAINED_GLASS_PANE) { name = "请输入一个有效的整数!" })
-        data.playerCountPerGroup = text.toInt()
+        val count = text?.toPlayerCountOrNull()
+            ?: return@onClick it.inventory.setItem(2, buildItem(Material.RED_STAINED_GLASS_PANE) { name = PLAYER_COUNT_INPUT_ERROR })
+        data.playerCountPerGroup = count
         it.clicker.openPlayerGroupingMenu()
     }
 

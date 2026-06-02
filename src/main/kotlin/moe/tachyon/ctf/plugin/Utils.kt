@@ -130,6 +130,20 @@ data class GameSettingData(
     var randomMap: Boolean = true,
 )
 
+const val MIN_PLAYER_COUNT_PER_GROUP = 1
+const val MAX_PLAYER_COUNT_PER_GROUP = 50
+
+fun isValidPlayerCountPerGroup(count: Int): Boolean =
+    count in MIN_PLAYER_COUNT_PER_GROUP..MAX_PLAYER_COUNT_PER_GROUP
+
+fun requireValidPlayerCountPerGroup(count: Int)
+{
+    require(isValidPlayerCountPerGroup(count))
+    {
+        "每组玩家人数必须在 $MIN_PLAYER_COUNT_PER_GROUP 到 $MAX_PLAYER_COUNT_PER_GROUP 之间"
+    }
+}
+
 private fun randomId() = Random.nextULong().toString(36).take(4).padStart(4, '0')
 
 fun HumanEntity.replayRecord(file: File)
@@ -163,6 +177,8 @@ fun HumanEntity.replayRecord(file: File)
 
 fun createGame(data: GameSettingData, timeout: Boolean): GameWorld
 {
+    requireValidPlayerCountPerGroup(data.playerCountPerGroup)
+
     var world: GameWorld? = null
     val date = Date()
     val format = SimpleDateFormat("yy-MM-dd_HH-mm-ss")
