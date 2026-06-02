@@ -24,7 +24,17 @@ import taboolib.common.util.random
 import taboolib.platform.util.buildItem
 import taboolib.platform.util.isAir
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.sin
+
+private fun horizontalVelocity(from: Location, target: Location, speed: Double): Vector?
+{
+    val dx = target.x - from.x
+    val dz = target.z - from.z
+    val length = hypot(dx, dz)
+    if (length < 1.0e-6) return null
+    return Vector(dx / length * speed, 0.0, dz / length * speed)
+}
 
 @SubscribeEvent(ignoreCancelled = true, priority = EventPriority.MONITOR)
 private fun onPlayerPickupFlag(event: PlayerMoveEvent)
@@ -203,7 +213,7 @@ fun onPlayerParasitic(world: GameWorld, player: Player)
             .minByOrNull { it.location.distanceSquared(player.location) }
 
         val v =
-            nearest?.location?.toVector()?.subtract(player.location.toVector())?.normalize()?.multiply(0.3)
+            nearest?.let { horizontalVelocity(player.location, it.location, 0.3) }
             ?: random(0.0, Math.PI * 2).let { Vector(cos(it), 0.0, sin(it)).multiply(0.3) }
 
         player.velocity = Vector(v.x, player.velocity.y, v.z)

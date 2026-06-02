@@ -7,6 +7,7 @@ import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.block.data.Bisected
 import org.bukkit.entity.EntityType
+import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.MushroomCow
 import org.bukkit.entity.Silverfish
 import org.bukkit.util.BoundingBox
@@ -21,6 +22,21 @@ import kotlin.concurrent.atomics.incrementAndFetch
 import kotlin.random.Random
 
 private class MapGenerationException(message: String): IllegalStateException(message)
+
+private fun horizontalVelocity(from: Location, target: Location, speed: Double): Vector?
+{
+    val dx = target.x - from.x
+    val dz = target.z - from.z
+    val length = kotlin.math.hypot(dx, dz)
+    if (length < 1.0e-6) return null
+    return Vector(dx / length * speed, 0.0, dz / length * speed)
+}
+
+private fun LivingEntity.steerHorizontally(target: Location, speed: Double)
+{
+    val v = horizontalVelocity(location, target, speed) ?: return
+    velocity = Vector(v.x, velocity.y, v.z)
+}
 
 private fun GameWorld.randomLocations(
     xRange: IntRange,
@@ -284,13 +300,12 @@ private class CowAI(
 
         if (target.first.world != cow.world) return
 
-        if (sprinting) cow.navigationMove(target.first, 3.0)
-        else cow.navigationMove(target.first, 1.0)
+        if (sprinting) cow.steerHorizontally(target.second, 0.45)
+        else cow.steerHorizontally(target.second, 0.18)
 
         if (target.second.distanceSquared(cow.location) < 1.0 && !cooldown)
         {
-            val d = Vector(target.second.x - cow.location.x, 0.0, target.second.z - cow.location.z).normalize().multiply(0.8)
-            cow.velocity = d
+            horizontalVelocity(cow.location, target.second, 0.8)?.let { cow.velocity = it }
             cooldown = true
             sprinting = false
         }
@@ -333,10 +348,10 @@ private class SilverfishAI(
 
         if (target.first.world != bug.world) return
 
-        bug.navigationMove(target.first, 1.0)
+        bug.steerHorizontally(target.second, 0.22)
 
         if (target.second.distanceSquared(bug.location) < 2.5)
-            bug.velocity = Vector(target.second.x - bug.location.x, 0.0, target.second.z - bug.location.z).normalize().multiply(0.4)
+            horizontalVelocity(bug.location, target.second, 0.4)?.let { bug.velocity = it }
         if (target.second.distanceSquared(bug.location) < 0.5)
             onPlayerParasitic(world, target.first)
     }
