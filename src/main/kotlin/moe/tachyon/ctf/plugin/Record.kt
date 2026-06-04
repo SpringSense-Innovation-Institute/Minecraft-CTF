@@ -25,7 +25,9 @@ import java.io.Closeable
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
+import java.util.concurrent.Executors
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean as JavaAtomicBoolean
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.uuid.ExperimentalUuidApi
@@ -57,9 +59,11 @@ class GameRecord(
             val bukkitWorld = world.bukkitWorld()
             if (!running.load() || done.load() || bukkitWorld == null)
             {
-                recordWriter.close()
                 this@submit.cancel()
-                checkGameWorldRecycle(world.name)
+                recordWriter.closeAsync()
+                {
+                    submit { checkGameWorldRecycle(world.name) }
+                }
                 return@submit
             }
 
@@ -104,13 +108,8 @@ class GameRecord(
                                 blocks += Location(world.bukkitWorld(), x.toDouble(), y.toDouble(), z.toDouble())
             }
 
-            submit(async = true)
-            {
-                recordWriter.writeTick(
-                    blocks.map { BlockStatus(it.blockX, it.blockY, it.blockZ, bukkitWorld.getBlockAt(it).blockData.asString) },
-                    entities,
-                )
-            }
+            val blockStatuses = blocks.map { BlockStatus(it.blockX, it.blockY, it.blockZ, bukkitWorld.getBlockAt(it).blockData.asString) }
+            recordWriter.writeTick(blockStatuses, entities)
         }
     }
 
@@ -274,16 +273,40 @@ class RecordWriter(
         generateSequence { File(file.absolutePath + "." + randomId() + ".tmp") }.first { !it.exists() }
     }
 
-    private val tmpFileOutput by lazy {
+    private val tmpFileOutput by lazy()
+    {
         if (tmpFile.exists()) tmpFile.delete()
         DataOutputStream(tmpFile.outputStream())
     }
-    private var closed = false
 
-    override fun close(): Unit = synchronized(this)
+    private val executor = Executors.newSingleThreadExecutor()
+    { task ->
+        Thread(task, "CTF-RecordWriter-${file.nameWithoutExtension.take(32)}").apply { isDaemon = true }
+    }
+    private val closeStarted = JavaAtomicBoolean(false)
+    private val closed = JavaAtomicBoolean(false)
+
+    fun closeAsync(onClosed: () -> Unit = {})
     {
-        if (closed) return
-        closed = true
+        if (!closeStarted.compareAndSet(false, true)) return
+        executor.execute()
+        {
+            runCatching { closeInternal() }
+            runCatching { onClosed() }
+            executor.shutdown()
+        }
+    }
+
+    override fun close()
+    {
+        closeStarted.set(true)
+        closeInternal()
+        executor.shutdown()
+    }
+
+    private fun closeInternal(): Unit = synchronized(this)
+    {
+        if (!closed.compareAndSet(false, true)) return
 
         tmpFileOutput.writeShort(-1)
         tmpFileOutput.flush()
@@ -303,38 +326,46 @@ class RecordWriter(
     private var tickCount = 0L
     private val start by lazy { System.currentTimeMillis() }
 
-    fun writeTick(blocks: List<BlockStatus>, entities: List<EntityStatus>) = synchronized(this)
+    fun writeTick(blocks: List<BlockStatus>, entities: List<EntityStatus>)
     {
-        if (closed) return@synchronized
+        if (closeStarted.get()) return
 
-        start
-        tickCount++
-        tmpFileOutput.writeInt(entities.size)
-        for (entity in entities)
+        executor.execute()
         {
-            tmpFileOutput.writeUTF(entity.uuid)
-            tmpFileOutput.writeUTF(entity.type)
-            tmpFileOutput.writeFloat(entity.x.toFloat())
-            tmpFileOutput.writeFloat(entity.y.toFloat())
-            tmpFileOutput.writeFloat(entity.z.toFloat())
-            tmpFileOutput.writeFloat(entity.yaw)
-            tmpFileOutput.writeFloat(entity.pitch)
-            tmpFileOutput.writeFloat(entity.vx.toFloat())
-            tmpFileOutput.writeFloat(entity.vy.toFloat())
-            tmpFileOutput.writeFloat(entity.vz.toFloat())
-            tmpFileOutput.writeUTF(entity.name ?: "")
-            tmpFileOutput.writeUTF(entity.helmet.takeIf { it.type.isNotAir() }?.getItemTag(false)?.toJson() ?: "")
-            tmpFileOutput.writeUTF(entity.chestplate.takeIf { it.type.isNotAir() }?.getItemTag(false)?.toJson() ?: "")
-            tmpFileOutput.writeUTF(entity.leggings.takeIf { it.type.isNotAir() }?.getItemTag(false)?.toJson() ?: "")
-            tmpFileOutput.writeUTF(entity.boots.takeIf { it.type.isNotAir() }?.getItemTag(false)?.toJson() ?: "")
-        }
-        tmpFileOutput.writeInt(blocks.size)
-        for (block in blocks)
-        {
-            tmpFileOutput.writeInt(block.x)
-            tmpFileOutput.writeInt(block.y)
-            tmpFileOutput.writeInt(block.z)
-            tmpFileOutput.writeUTF(block.blockData)
+            synchronized(this)
+            {
+                if (closed.get()) return@synchronized
+
+                start
+                tickCount++
+                tmpFileOutput.writeInt(entities.size)
+                for (entity in entities)
+                {
+                    tmpFileOutput.writeUTF(entity.uuid)
+                    tmpFileOutput.writeUTF(entity.type)
+                    tmpFileOutput.writeFloat(entity.x.toFloat())
+                    tmpFileOutput.writeFloat(entity.y.toFloat())
+                    tmpFileOutput.writeFloat(entity.z.toFloat())
+                    tmpFileOutput.writeFloat(entity.yaw)
+                    tmpFileOutput.writeFloat(entity.pitch)
+                    tmpFileOutput.writeFloat(entity.vx.toFloat())
+                    tmpFileOutput.writeFloat(entity.vy.toFloat())
+                    tmpFileOutput.writeFloat(entity.vz.toFloat())
+                    tmpFileOutput.writeUTF(entity.name ?: "")
+                    tmpFileOutput.writeUTF(entity.helmet.takeIf { it.type.isNotAir() }?.getItemTag(false)?.toJson() ?: "")
+                    tmpFileOutput.writeUTF(entity.chestplate.takeIf { it.type.isNotAir() }?.getItemTag(false)?.toJson() ?: "")
+                    tmpFileOutput.writeUTF(entity.leggings.takeIf { it.type.isNotAir() }?.getItemTag(false)?.toJson() ?: "")
+                    tmpFileOutput.writeUTF(entity.boots.takeIf { it.type.isNotAir() }?.getItemTag(false)?.toJson() ?: "")
+                }
+                tmpFileOutput.writeInt(blocks.size)
+                for (block in blocks)
+                {
+                    tmpFileOutput.writeInt(block.x)
+                    tmpFileOutput.writeInt(block.y)
+                    tmpFileOutput.writeInt(block.z)
+                    tmpFileOutput.writeUTF(block.blockData)
+                }
+            }
         }
     }
 }
