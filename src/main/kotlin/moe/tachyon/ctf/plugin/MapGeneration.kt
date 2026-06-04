@@ -2,6 +2,7 @@
 
 package moe.tachyon.ctf.plugin
 
+import moe.tachyon.ctf.plugin.GameWorld.MapElement
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
@@ -13,12 +14,18 @@ import org.bukkit.entity.Silverfish
 import org.bukkit.util.BoundingBox
 import org.bukkit.util.Vector
 import taboolib.common.util.randomDouble
-import taboolib.module.ai.*
+import taboolib.module.ai.SimpleAi
+import taboolib.module.ai.addTargetAi
+import taboolib.module.ai.clearGoalAi
+import taboolib.module.ai.clearTargetAi
 import taboolib.module.navigation.isWater
+import java.util.*
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.concurrent.atomics.decrementAndFetch
 import kotlin.concurrent.atomics.incrementAndFetch
+import kotlin.math.abs
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 private class MapGenerationException(message: String): IllegalStateException(message)
@@ -255,9 +262,9 @@ fun GameWorld.generateMap()
 }
 
 private class CowAI(
-    private val world: GameWorld,
+    world: GameWorld,
     val cow: MushroomCow,
-): SimpleAi()
+): MapEntity(world, cow)
 {
     private var sprinting = false
     private var cooldown = false
@@ -272,34 +279,34 @@ private class CowAI(
 
     override fun updateTask()
     {
-        val target = world.getPlayers()
+        val target = world.getBukkitPlayers()
             .asSequence()
-            .filter { world.getPlayerTeam(it) != PlayerTeam.NONE }
-            .mapNotNull { Bukkit.getPlayer(it) }
+            .filter { world.getPlayerTeam(it.name) != PlayerTeam.NONE }
             .map { it to it.location }
             .filter { it.second.world == cow.world }
-            .minByOrNull { it.second.distanceSquared(cow.location) } ?: return
+            .filter { it.first.world == cow.world }
+            .toList()
 
-        if (target.first.world != cow.world) return
+        val nearest = target.minByOrNull { it.second.distanceSquared(cow.location) } ?: return
 
-        if (!sprinting && target.second.distanceSquared(cow.location) < 16.0 && !cooldown)
+        if (!sprinting && nearest.second.distanceSquared(cow.location) < 16.0 && !cooldown)
         {
             sprinting = true
         }
-        else if (target.second.distanceSquared(cow.location) >= 25.0)
+        else if (nearest.second.distanceSquared(cow.location) >= 25.0)
         {
             sprinting = false
             cooldown = false
         }
 
-        if (target.first.world != cow.world) return
+        if (sprinting) cow.velocity = findPath(target.map { it.second.blockX + 24 to it.second.blockZ + 36 }, 0.66)
+        else cow.velocity = findPath(target.map { it.second.blockX + 24 to it.second.blockZ + 36 }, 0.22)
+        val tmp = cow.location.clone().setDirection(cow.velocity)
+        cow.setRotation(tmp.yaw, tmp.pitch)
 
-        if (sprinting) cow.navigationMove(target.first, 3.0)
-        else cow.navigationMove(target.first, 1.0)
-
-        if (target.second.distanceSquared(cow.location) < 1.0 && !cooldown)
+        if (nearest.second.distanceSquared(cow.location) < 1.0 && !cooldown)
         {
-            horizontalVelocity(cow.location, target.second, 0.8)?.let { cow.velocity = it }
+            horizontalVelocity(cow.location, nearest.second, 0.8)?.let { cow.velocity = it }
             cooldown = true
             sprinting = false
         }
@@ -307,10 +314,10 @@ private class CowAI(
 }
 
 private class SilverfishAI(
-    private val world: GameWorld,
+    world: GameWorld,
     val bug: Silverfish,
     val bugCount: AtomicInt,
-): SimpleAi()
+): MapEntity(world, bug)
 {
     private var inPitcherPlant = false
     override fun shouldExecute(): Boolean = world.gameStatus.inGame() && bug.isValid
@@ -338,15 +345,149 @@ private class SilverfishAI(
             .map { it to it.location.clone().apply { y = bug.location.y } }
             .filter { it.second.world == bug.world }
             .filterNot { it.first.inventory.helmet.isParasiticHelmet() }
-            .minByOrNull { it.second.distanceSquared(bug.location) } ?: return
+            .filter { it.first.world == bug.world }
+            .toList()
 
-        if (target.first.world != bug.world) return
+        bug.velocity = findPath(target.map { it.second.blockX + 24 to it.second.blockZ + 36 }, 0.20)
+        val tmp = bug.location.clone().setDirection(bug.velocity)
+        bug.setRotation(tmp.yaw, tmp.pitch)
 
-        bug.navigationMove(target.first, 1.0)
+        target
+            .minByOrNull { it.second.distanceSquared(bug.location) }
+            ?.let()
+            { (player, location) ->
+                if (location.distanceSquared(bug.location) < 0.64)
+                    onPlayerParasitic(world, player)
+                else if (location.distanceSquared(bug.location) < 4)
+                    horizontalVelocity(bug.location, location, 0.4)?.let { bug.velocity = it }
+            }
+    }
+}
 
-        if (target.second.distanceSquared(bug.location) < 2.5)
-            horizontalVelocity(bug.location, target.second, 0.4)?.let { bug.velocity = it }
-        if (target.second.distanceSquared(bug.location) < 0.5)
-            onPlayerParasitic(world, target.first)
+private abstract class MapEntity(
+    protected val world: GameWorld,
+    private val entity: LivingEntity
+): SimpleAi()
+{
+    protected fun findPath(target: List<Pair<Int, Int>>, speed: Double): Vector
+    {
+        val map = world.getMap()
+        val curLocation = entity.location
+
+        var curX = curLocation.blockX + 24
+        var curZ = curLocation.blockZ + 36
+
+        // 如果当前处于不可走的格子，说明刚好站在了栅栏/逻辑上不可走的位置（如敌人旁边），尝试移动到附近的可走位置
+        if (!map[curX][curZ].passable())
+        {
+            val adjacentBlocks = mutableListOf<Triple<Int, Int, Double>>()
+
+            for (dx in -5..5)
+            {
+                for (dz in -5..5)
+                {
+                    val x = curX + dx
+                    val z = curZ + dz
+                    if (x !in map.indices || z !in map[x].indices || !map[x][z].passable())
+                        continue
+                    val loc = Location(curLocation.world, x - 24 + 0.5, curLocation.y, z - 36 + 0.5)
+                    val distance = curLocation.distance(loc)
+                    adjacentBlocks.add(Triple(x, z, distance))
+                }
+            }
+
+            val res = adjacentBlocks.minByOrNull { it.third } ?: return Vector(0.0, 0.0, 0.0)
+
+            curX = res.first
+            curZ = res.second
+
+            val nextLocation = Location(
+                curLocation.world,
+                curX - 24 + 0.5,
+                curLocation.y,
+                curZ - 36 + 0.5
+            )
+            return horizontalVelocity(curLocation, nextLocation, speed) ?: Vector(0.0, 0.0, 0.0)
+        }
+
+        val next = aStar(
+            map,
+            curX to curZ,
+            target
+        ) ?: return Vector(0.0, 0.0, 0.0)
+
+        val nextLocation = Location(
+            curLocation.world,
+            next.first - 24 + 0.5,
+            curLocation.y,
+            next.second - 36 + 0.5
+        )
+
+        return horizontalVelocity(curLocation, nextLocation, speed) ?: Vector(0.0, 0.0, 0.0)
+    }
+
+    private fun aStar(
+        map: List<List<MapElement>>,
+        start: Pair<Int, Int>,
+        targets: List<Pair<Int, Int>>
+    ): Pair<Int, Int>?
+    {
+        if (targets.isEmpty()) return null
+
+        val priorityQueue = PriorityQueue<Triple<Double, Pair<Int, Int>, Pair<Int, Int>?>>(compareBy()
+        {
+            it.first + targets.minOf()
+            { target ->
+                abs(it.second.first - target.first) + abs(it.second.second - target.second)
+            }
+        })
+
+        val passable = { x: Int, z: Int ->
+            x in map.indices &&
+            z in map[x].indices &&
+            (map[x][z].passable() || Pair(x, z) in targets)
+        }
+
+        val directions = listOf(
+            Pair(1, 0),
+            Pair(-1, 0),
+            Pair(0, 1),
+            Pair(0, -1),
+
+            Pair(-1, -1),
+            Pair(-1, 1),
+            Pair(1, -1),
+            Pair(1, 1),
+        )
+
+        val vis = mutableSetOf<Pair<Int, Int>>()
+
+        priorityQueue.add(Triple(0.0, start, null))
+
+        while (priorityQueue.isNotEmpty())
+        {
+            val (cost, current, firstStep) = priorityQueue.poll()
+            if (current in vis) continue
+            vis.add(current)
+            if (current in targets)
+                return firstStep
+
+            for (d in directions)
+            {
+                if (d.first != 0)
+                    if (!passable(current.first + d.first, current.second))
+                        continue
+                if (d.second != 0)
+                    if (!passable(current.first, current.second + d.second))
+                        continue
+                if (!passable(current.first + d.first, current.second + d.second))
+                    continue
+
+                val newCost = cost + sqrt((d.first * d.first + d.second * d.second).toDouble())
+                val next = Pair(current.first + d.first, current.second + d.second)
+                priorityQueue.add(Triple(newCost, next, firstStep ?: next))
+            }
+        }
+        return null
     }
 }
