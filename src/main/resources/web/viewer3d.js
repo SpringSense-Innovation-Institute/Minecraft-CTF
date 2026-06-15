@@ -1401,7 +1401,7 @@
         throw new Error("HTTP " + response.status);
       }
       const records = await response.json();
-      appState.records = Array.isArray(records) ? records.slice().sort() : [];
+      appState.records = Array.isArray(records) ? records.slice().sort().reverse() : [];
       filterRecords(refs.recordSearchInput.value);
       setRecordStatus("已同步");
     } catch (error) {
