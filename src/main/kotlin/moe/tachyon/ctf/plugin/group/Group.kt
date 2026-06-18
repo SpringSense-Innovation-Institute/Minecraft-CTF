@@ -248,6 +248,11 @@ private fun onPlayerJoin(event: PlayerJoinEvent)
     }
     team.addEntry(player.name)
     team.prefix = "&6[${group.name}] ".colored()
+    scoreboard.teams.map { it.name }.forEach()
+    {
+        if (groups.none { g -> g.name == it })
+            scoreboard.getTeam(it)?.unregister()
+    }
 }
 
 fun getPlayerGroup(playerName: String): GroupInfo?
