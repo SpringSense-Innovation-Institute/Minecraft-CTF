@@ -23,6 +23,8 @@ import taboolib.common.platform.function.submit
 import taboolib.common.util.random
 import taboolib.platform.util.buildItem
 import taboolib.platform.util.isAir
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
@@ -179,9 +181,13 @@ fun ItemStack?.isParasiticHelmet(): Boolean =
     itemMeta?.hasEnchant(Enchantment.BINDING_CURSE) == true &&
     (itemMeta as? LeatherArmorMeta)?.color == Color.GREEN
 
+private val parasiticPlayerIds = ConcurrentHashMap.newKeySet<UUID>()
+
 // 玩家被寄生
 fun onPlayerParasitic(world: GameWorld, player: Player)
 {
+    if (!parasiticPlayerIds.add(player.uniqueId)) return
+
     onPlayerDropFlag(player)
     val speed = player.walkSpeed
     player.walkSpeed = 0.0f
@@ -195,10 +201,14 @@ fun onPlayerParasitic(world: GameWorld, player: Player)
         tick++
         if (tick >= 260 || !player.isOnline || !world.gameStatus.inGame() || player.world != world.bukkitWorld())
         {
-            player.inventory.helmet = null
-            Bukkit.getPluginManager().callEvent(PlayerMoveEvent(player, player.location, player.location))
-            player.walkSpeed = speed
-            player.removePotionEffect(PotionEffectType.JUMP_BOOST)
+            if (player.isOnline)
+            {
+                player.inventory.helmet = null
+                player.walkSpeed = speed
+                player.removePotionEffect(PotionEffectType.JUMP_BOOST)
+                Bukkit.getPluginManager().callEvent(PlayerMoveEvent(player, player.location, player.location))
+            }
+            parasiticPlayerIds.remove(player.uniqueId)
             return@submit cancel()
         }
         if (tick >= 200)
