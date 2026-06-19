@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import moe.tachyon.ctf.plugin.MinecraftCtfPlugin
 import moe.tachyon.ctf.plugin.getStatisticData
 import moe.tachyon.ctf.plugin.getStatisticFiles
+import moe.tachyon.ctf.plugin.isSafeStatisticName
 import moe.tachyon.ctf.plugin.practiceMode
 
 fun HttpServer.statistics()
@@ -22,7 +23,14 @@ fun HttpServer.statistics()
     createContext("/statistics/data")
     { exchange ->
         val args = exchange.args()
-        val statistic = getStatisticData(args["name"] ?: practiceMode?.name)
+        val name = args["name"]
+        if (name != null && !isSafeStatisticName(name))
+        {
+            exchange.sendResponseHeaders(400, -1)
+            exchange.responseBody.close()
+            return@createContext
+        }
+        val statistic = getStatisticData(name ?: practiceMode?.name)
         val r = Json.encodeToString(statistic).toByteArray()
         exchange.sendResponseHeaders(200, r.size.toLong())
         exchange.responseHeaders.add("Content-Type", "application/json")

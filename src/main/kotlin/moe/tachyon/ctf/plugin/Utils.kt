@@ -16,6 +16,7 @@ import taboolib.common.util.randomDouble
 import taboolib.platform.BukkitPlugin
 import taboolib.platform.util.title
 import java.io.File
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.cos
@@ -207,11 +208,38 @@ data class StatisticData(
 
 private val statisticFileLock = Any()
 
-private fun getStatisticFile(name: String?) =  BukkitPlugin.getInstance().dataFolder.resolve("statistics/${name ?: "main"}.dat")
+private val statisticsDir: File get() = BukkitPlugin.getInstance().dataFolder.resolve("statistics")
+
+/**
+ * Resolves [name] as a child file of [baseDir] with the given [extension].
+ * Returns null if [name] is blank, contains path separators / null bytes,
+ * or escapes [baseDir] after canonicalization (path traversal defense).
+ */
+fun safeResolveChild(baseDir: File, name: String?, extension: String = ".dat"): File?
+{
+    if (name.isNullOrBlank()) return null
+    if ('/' in name || '\\' in name || '\u0000' in name) return null
+    return try
+    {
+        val baseCanonical = baseDir.canonicalFile
+        val targetCanonical = baseCanonical.resolve(name + extension).canonicalFile
+        val basePath = baseCanonical.canonicalPath
+        val targetPath = targetCanonical.canonicalPath
+        if (targetPath == basePath || targetPath.startsWith(basePath + File.separator)) targetCanonical
+        else null
+    }
+    catch (_: IOException)
+    {
+        null
+    }
+}
+
+fun isSafeStatisticName(name: String): Boolean = safeResolveChild(statisticsDir, name) != null
+
+private fun getStatisticFile(name: String?): File? = safeResolveChild(statisticsDir, name ?: "main")
+
 fun getStatisticFiles() =
-    BukkitPlugin.getInstance()
-        .dataFolder
-        .resolve("statistics")
+    statisticsDir
         .listFiles()
         ?.filter { it.isFile && it.name.endsWith(".dat") }
         ?.map { it.nameWithoutExtension }
@@ -219,7 +247,7 @@ fun getStatisticFiles() =
 
 fun getStatisticData(name: String?): StatisticData = synchronized(statisticFileLock)
 {
-    val file = getStatisticFile(name)
+    val file = getStatisticFile(name) ?: return StatisticData()
     if (!file.exists()) return StatisticData()
     return@synchronized runCatching()
     {
@@ -232,7 +260,7 @@ fun getStatisticData(name: String?): StatisticData = synchronized(statisticFileL
 
 private fun saveStatisticData(name: String?, data: StatisticData) = synchronized(statisticFileLock)
 {
-    val file = getStatisticFile(name)
+    val file = getStatisticFile(name) ?: return@synchronized
     if (!file.parentFile.exists()) file.parentFile.mkdirs()
     file.writeText(Json.encodeToString(data))
 }

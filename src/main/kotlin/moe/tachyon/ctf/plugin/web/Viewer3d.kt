@@ -210,7 +210,13 @@ fun HttpServer.viewer3d()
         val start = args["start"]?.toIntOrNull() ?: 0
         val speed = args["speed"]?.toDouble() ?: 1.0
 
-        val file = File(recordsFolder, "$name.dat")
+        val file = safeResolveChild(recordsFolder, name)
+        if (file == null)
+        {
+            exchange.sendResponseHeaders(400, -1)
+            exchange.responseBody.close()
+            return@createContext
+        }
         if (!file.exists())
         {
             exchange.sendResponseHeaders(404, -1)
