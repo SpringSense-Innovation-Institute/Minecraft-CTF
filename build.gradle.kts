@@ -23,6 +23,7 @@ plugins {
 }
 
 taboolib {
+    rootPackage = "moe.tachyon.ctf"
     env {
         install(Basic)
         install(BukkitNMS)

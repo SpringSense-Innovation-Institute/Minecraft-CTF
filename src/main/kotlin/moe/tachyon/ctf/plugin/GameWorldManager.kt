@@ -5,6 +5,7 @@ import org.bukkit.WorldCreator
 import org.bukkit.generator.ChunkGenerator
 import taboolib.common.platform.function.submit
 import taboolib.common.platform.function.warning
+import taboolib.platform.BukkitPlugin
 import java.io.File
 
 private val worlds = mutableMapOf<String, GameWorld>()
@@ -69,7 +70,7 @@ fun removeGameWorld(name: String)
     {
         worlds.remove(name)
         val worldDir = File(Bukkit.getWorldContainer(), name)
-        if (worldDir.exists()) submit(async = true) { worldDir.deleteRecursively() }
+        deleteWorldDir(worldDir)
         return
     }
 
@@ -81,13 +82,30 @@ fun removeGameWorld(name: String)
     if (unloaded)
     {
         val worldDir = File(Bukkit.getWorldContainer(), name)
-        if (worldDir.exists()) submit(async = true) { worldDir.deleteRecursively() }
+        deleteWorldDir(worldDir)
         worlds.remove(name)
         println("维度 $name 已卸载！")
     }
     else
     {
         warning("无法卸载世界 $name！")
+    }
+}
+
+private fun deleteWorldDir(worldDir: File)
+{
+    if (!worldDir.exists()) return
+    if (!BukkitPlugin.getInstance().isEnabled)
+    {
+        worldDir.deleteRecursively()
+        return
+    }
+    runCatching()
+    {
+        submit(async = true) { worldDir.deleteRecursively() }
+    }.onFailure()
+    {
+        worldDir.deleteRecursively()
     }
 }
 
