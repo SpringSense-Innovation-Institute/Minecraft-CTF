@@ -212,8 +212,8 @@ fun GameWorld.generateMap()
 
     // 生成蠹虫
     val bugCount = AtomicInt(0)
-    val silverfishLocations = randomLocations(1..24, -36..36, playerCountPerGroup, "右半场蠹虫") { it.isEmpty() } +
-        randomLocations(-24..-1, -36..36, playerCountPerGroup, "左半场蠹虫") { it.isEmpty() }
+    val silverfishLocations = randomLocations(1..24, -36..36, 1, "右半场蠹虫") { it.isEmpty() } +
+        randomLocations(-24..-1, -36..36, 1, "左半场蠹虫") { it.isEmpty() }
     silverfishLocations.forEach()
     { location ->
         bugCount.incrementAndFetch()
