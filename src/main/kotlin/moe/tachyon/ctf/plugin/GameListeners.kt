@@ -121,6 +121,7 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
         .getNearbyEntities(0.5, 1.0, 0.5)
         .filterIsInstance<Player>()
         .filter { world.getPlayerTeam(it.name) != team && !it.inventory.helmet.isParasiticHelmet() }
+        .filter { world.getPlayerTeam(it.name) != PlayerTeam.NONE }
 
     for (entity in entities)
     {
@@ -235,6 +236,7 @@ private fun onPlayerParasitic(event: PlayerMoveEvent)
         .getNearbyEntities(0.5, 1.0, 0.5)
         .filterIsInstance<Player>()
         .filter { player.inventory.helmet.isParasiticHelmet() != it.inventory.helmet.isParasiticHelmet() }
+        .filter { world.getPlayerTeam(it.name) != PlayerTeam.NONE }
 
     for (entity in entities)
     {
