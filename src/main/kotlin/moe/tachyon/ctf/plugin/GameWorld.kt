@@ -48,6 +48,8 @@ class GameWorld(
     @OptIn(ExperimentalAtomicApi::class)
     val used = AtomicBoolean(false)
 
+    private val bossBar = GameBossBar(this)
+
     @OptIn(ExperimentalAtomicApi::class)
     fun canRecycle(): Boolean
     {
@@ -316,7 +318,10 @@ class GameWorld(
                         mp[rightGroup.id] = (mp[rightGroup.id] ?: 0) + 1
                     }
                 }
+
+                bossBar.start()
             }
+            bossBar.update(3L * 60 * 20 - tick)
             val end = tick == 3L * 60 * 20
             getWinner(end = end)?.let()
             { winner ->
@@ -346,6 +351,7 @@ class GameWorld(
 
         val wasPreparing = gameStatus == GameStatus.PREPARING
         gameStatus = GameStatus.NONE
+        bossBar.stop()
         if (wasPreparing)
         {
             broadcastMessage("&c游戏已取消".colored())
