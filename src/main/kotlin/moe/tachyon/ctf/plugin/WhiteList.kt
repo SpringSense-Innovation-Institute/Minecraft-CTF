@@ -30,7 +30,7 @@ private fun onPlayerJoin(event: PlayerJoinEvent)
 }
 
 @Awake(LifeCycle.ENABLE)
-fun registerMenuCommand()
+fun registerWhitelistCommand()
 {
     simpleCommand("whitelist_mode", permissionDefault = PermissionDefault.TRUE)
     { sender, args ->
