@@ -120,3 +120,24 @@ fun registerMenuCommand()
         player.openMenu()
     }
 }
+
+@Awake(LifeCycle.ENABLE)
+fun registerPerformanceModeCommand()
+{
+    simpleCommand("performance_mode", permissionDefault = PermissionDefault.TRUE)
+    { sender, args ->
+        if (args.isEmpty())
+        {
+            sender.sendMessage("§a当前表演模式：§e$performanceMode")
+            return@simpleCommand
+        }
+        val mode = args[0].toBooleanStrictOrNull()
+        if (mode == null)
+        {
+            sender.sendMessage("§c参数错误！请使用 true 或 false")
+            return@simpleCommand
+        }
+        performanceMode = mode
+        sender.sendMessage("§a已将表演模式设置为：§e$performanceMode")
+    }
+}

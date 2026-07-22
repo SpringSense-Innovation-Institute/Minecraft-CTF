@@ -119,6 +119,8 @@ data class PracticeMode(
 
 @Volatile
 var practiceMode: PracticeMode? = null
+@Volatile
+var performanceMode: Boolean = false
 
 enum class GameStatus
 {

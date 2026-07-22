@@ -100,6 +100,11 @@ fun processWaitList() = synchronized(waitList)
             continue
         }
 
+        if (performanceMode)
+        {
+            continue
+        }
+
         if (setting.enemy is Enemy.Specific && (setting.enemy.group.isNone || setting.enemy.group.isBot))
         {
             try
