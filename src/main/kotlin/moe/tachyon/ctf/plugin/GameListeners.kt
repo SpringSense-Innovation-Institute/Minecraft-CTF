@@ -215,7 +215,7 @@ fun onPlayerParasitic(world: GameWorld, player: Player)
             .minByOrNull { it.location.distanceSquared(player.location) }
 
         val v =
-            nearest?.let { horizontalVelocity(player.location, it.location, 0.3) }
+            nearest?.let { horizontalVelocity(player.location, it.location, 0.2) }
             ?: random(0.0, Math.PI * 2).let { Vector(cos(it), 0.0, sin(it)).multiply(0.3) }
 
         player.velocity = Vector(v.x, player.velocity.y, v.z)

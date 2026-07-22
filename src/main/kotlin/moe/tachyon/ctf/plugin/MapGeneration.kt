@@ -348,7 +348,7 @@ private class SilverfishAI(
             .filter { it.first.world == bug.world }
             .toList()
 
-        bug.velocity = findPath(target.map { it.second.blockX + 24 to it.second.blockZ + 36 }, 0.20)
+        bug.velocity = findPath(target.map { it.second.blockX + 24 to it.second.blockZ + 36 }, 0.15)
         val tmp = bug.location.clone().setDirection(bug.velocity)
         bug.setRotation(tmp.yaw, tmp.pitch)
 
