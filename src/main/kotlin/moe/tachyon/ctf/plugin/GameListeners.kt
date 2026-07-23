@@ -99,6 +99,7 @@ private fun onPlayerSetFlag(event: PlayerMoveEvent)
         if (!world.leftGroup.isPlayer || !world.rightGroup.isPlayer) return@updateStatisticData
         val group = getPlayerGroup(player.name) ?: return@updateStatisticData
         getFlagTimes[group] = getFlagTimes.getOrDefault(group, 0) + 1
+        playerGetFlagTimes[player.name] = playerGetFlagTimes.getOrDefault(player.name, 0) + 1
     }
 }
 
@@ -134,6 +135,7 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
                 if (!world.leftGroup.isPlayer || !world.rightGroup.isPlayer) return@updateStatisticData
                 val group = getPlayerGroup(player.name) ?: return@updateStatisticData
                 catchTimes[group] = catchTimes.getOrDefault(group, 0) + 1
+                playerCatchTimes[player.name] = playerCatchTimes.getOrDefault(player.name, 0) + 1
             }
         }
         else if (enemyLocationStatus.contains(player.location) && enemyLocationStatus.contains(entity.location))
@@ -145,6 +147,7 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
                 if (!world.leftGroup.isPlayer || !world.rightGroup.isPlayer) return@updateStatisticData
                 val group = getPlayerGroup(entity.name) ?: return@updateStatisticData
                 catchTimes[group] = catchTimes.getOrDefault(group, 0) + 1
+                playerCatchTimes[entity.name] = playerCatchTimes.getOrDefault(entity.name, 0) + 1
             }
         }
     }
