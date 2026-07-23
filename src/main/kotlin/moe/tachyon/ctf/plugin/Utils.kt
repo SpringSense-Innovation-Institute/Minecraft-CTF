@@ -206,6 +206,8 @@ data class StatisticData(
     var winTimes: MutableMap<Int, Long> = mutableMapOf(),
     var playerCatchTimes: MutableMap<String, Long> = mutableMapOf(),
     var playerGetFlagTimes: MutableMap<String, Long> = mutableMapOf(),
+    var rescueTimes: MutableMap<Int, Long> = mutableMapOf(),
+    var playerRescueTimes: MutableMap<String, Long> = mutableMapOf(),
 )
 
 private val statisticFileLock = Any()

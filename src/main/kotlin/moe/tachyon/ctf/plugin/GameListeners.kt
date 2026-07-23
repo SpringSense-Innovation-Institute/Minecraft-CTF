@@ -153,6 +153,38 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
     }
 }
 
+@SubscribeEvent(ignoreCancelled = true, priority = EventPriority.MONITOR)
+private fun onPlayerRescue(event: PlayerMoveEvent)
+{
+    val world = getGameWorld(event.player.world.name) ?: return
+    if (!world.gameStatus.inGame()) return
+    val player = event.player
+    val team = world.getPlayerTeam(player.name)
+    if (team == PlayerTeam.NONE) return
+
+    val to = event.to ?: return
+    val from = event.from
+    if (from.blockX == to.blockX && from.blockZ == to.blockZ) return
+
+    val expectedX = if (team == PlayerTeam.LEFT) -16 else 16
+    if (to.blockX != expectedX) return
+    if (to.blockZ != 24) return
+
+    val bukkitWorld = world.bukkitWorld() ?: return
+    val doorBase = Location(bukkitWorld, expectedX.toDouble(), 0.0, 26.0)
+    val doorOpen = doorBase.clone().add(0.0, 1.0, 0.0).block.isPassable &&
+                   doorBase.clone().add(0.0, 2.0, 0.0).block.isPassable
+    if (doorOpen) return
+
+    updateStatisticData(world.practice)
+    {
+        if (!world.leftGroup.isPlayer || !world.rightGroup.isPlayer) return@updateStatisticData
+        val group = getPlayerGroup(player.name) ?: return@updateStatisticData
+        rescueTimes[group] = rescueTimes.getOrDefault(group, 0) + 1
+        playerRescueTimes[player.name] = playerRescueTimes.getOrDefault(player.name, 0) + 1
+    }
+}
+
 @SubscribeEvent
 private fun onPlayerDeath(event: PlayerRespawnEvent)
 {

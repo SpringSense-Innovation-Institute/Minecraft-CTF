@@ -217,10 +217,12 @@
         <div class="panel-card chart-card"><div id="chart-withOther" class="chart-container"></div></div>
         <div class="panel-card chart-card"><div id="chart-catch" class="chart-container"></div></div>
         <div class="panel-card chart-card"><div id="chart-flag" class="chart-container"></div></div>
+        <div class="panel-card chart-card"><div id="chart-rescue" class="chart-container"></div></div>
         <div class="panel-card chart-card"><div id="chart-win" class="chart-container"></div></div>
         <div class="panel-card chart-card"><div id="chart-totalTime" class="chart-container"></div></div>
         <div class="panel-card chart-card"><div id="chart-playerCatch" class="chart-container"></div></div>
         <div class="panel-card chart-card"><div id="chart-playerFlag" class="chart-container"></div></div>
+        <div class="panel-card chart-card"><div id="chart-playerRescue" class="chart-container"></div></div>
 
         <!-- 第二组：场均/条件统计 (要求15场以上) -->
         <div class="panel-card chart-card"><div id="chart-avgWinRate" class="chart-container"></div></div>
@@ -346,10 +348,12 @@
         createBarChart('chart-withOther', '与其他玩家对局次数排行', getTopN(data.withOtherTimes), '次', '#a9db86');
         createBarChart('chart-catch', '抓人总次数排行', getTopN(data.catchTimes), '次', '#fcd573');
         createBarChart('chart-flag', '拿旗总次数排行', getTopN(data.getFlagTimes), '次', '#fa8686');
+        createBarChart('chart-rescue', '解救队友总次数排行', getTopN(data.rescueTimes), '次', '#c5e06e');
         createBarChart('chart-win', '获胜总次数排行', getTopN(data.winTimes), '次', '#8cd0eb');
         createBarChart('chart-totalTime', '总游戏时间排行', getTopN(data.totalTime, 1/1000), '秒', '#54c792');
         createBarChart('chart-playerCatch', '玩家抓人次数排行', getTopN(data.playerCatchTimes, 1, false), '次', '#6ec5c5');
         createBarChart('chart-playerFlag', '玩家拿旗次数排行', getTopN(data.playerGetFlagTimes, 1, false), '次', '#ffae73');
+        createBarChart('chart-playerRescue', '玩家解救队友次数排行', getTopN(data.playerRescueTimes, 1, false), '次', '#d8b670');
 
         createBarChart('chart-avgWinRate', '平均胜率排行 (≥15场)', getTopNAvg(data.winTimes, data.withOtherTimes, 15, 100, false), '%', '#ff9a70', true);
         createBarChart('chart-avgCatch', '场均抓人次数排行 (≥15场)', getTopNAvg(data.catchTimes, data.withOtherTimes, 15, 1, false), '次', '#b87dd4', true);
