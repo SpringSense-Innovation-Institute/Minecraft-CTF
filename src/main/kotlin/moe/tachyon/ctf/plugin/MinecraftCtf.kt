@@ -157,7 +157,7 @@ sealed interface Group
 
     enum class Bot(val selectId: String, override val displayName: String): Group
     {
-        DEFAULT("bot", "Default"),
+        DEFAULT("bot", "Bot"),
         DEFAULT_JUMP("jump-bot", "Jump"),
         DEFAULT_SNEAK("sneak-bot", "Sneak"),
         SIMPLE("simple", "Simple"),
