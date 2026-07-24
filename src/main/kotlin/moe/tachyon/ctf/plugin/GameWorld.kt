@@ -100,7 +100,7 @@ class GameWorld(
         broadcastMessage("&6${leftGroup.displayName} VS ${rightGroup.displayName} 的对决即将开始，请做好准备!".colored())
 
         preparedPlayers.clear()
-        if (timeout) submit(delay = 600)
+        if (timeout) submit(delay = 1200)
         {
             if (gameStatus == GameStatus.PREPARING)
             {
