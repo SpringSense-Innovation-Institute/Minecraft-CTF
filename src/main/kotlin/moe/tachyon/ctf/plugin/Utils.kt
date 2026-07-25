@@ -209,7 +209,7 @@ data class StatisticData(
 
 private val statisticFileLock = Any()
 
-private val statisticJson = Json { encodeDefaults = true }
+val statisticJson = Json { encodeDefaults = true }
 
 private val statisticsDir: File get() = BukkitPlugin.getInstance().dataFolder.resolve("statistics")
 

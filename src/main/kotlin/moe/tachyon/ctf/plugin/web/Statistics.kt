@@ -7,6 +7,7 @@ import moe.tachyon.ctf.plugin.getStatisticData
 import moe.tachyon.ctf.plugin.getStatisticFiles
 import moe.tachyon.ctf.plugin.isSafeStatisticName
 import moe.tachyon.ctf.plugin.practiceMode
+import moe.tachyon.ctf.plugin.statisticJson
 
 fun HttpServer.statistics()
 {
@@ -31,7 +32,7 @@ fun HttpServer.statistics()
             return@createContext
         }
         val statistic = getStatisticData(name ?: practiceMode?.name)
-        val r = Json.encodeToString(statistic).toByteArray()
+        val r = statisticJson.encodeToString(statistic).toByteArray()
         exchange.sendResponseHeaders(200, r.size.toLong())
         exchange.responseHeaders.add("Content-Type", "application/json")
         val os = exchange.responseBody
