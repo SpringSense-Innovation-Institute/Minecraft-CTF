@@ -218,7 +218,7 @@ private fun onPlayerChat(event: AsyncPlayerChatEvent)
     event.isCancelled = true
     val msg = "<${event.player.name}> ${event.message}"
 
-    val sensitiveMessages = listOf(GAME_PREPARED_MESSAGE, GAME_START_MESSAGE, GAME_END_MESSAGE).map { it.trim().lowercase() }
+    val sensitiveMessages = listOf(GAME_PREPARED_MESSAGE, GAME_START_MESSAGE, GAME_END_MESSAGE, GAME_RESULT_MESSAGE).map { it.trim().lowercase() }
 
     if (sensitiveMessages.any { msg.lowercase().contains(it) })
         return

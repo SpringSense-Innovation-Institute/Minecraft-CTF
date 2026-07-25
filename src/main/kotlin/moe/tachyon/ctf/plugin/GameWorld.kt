@@ -382,10 +382,16 @@ class GameWorld(
         {
             val player = Bukkit.getPlayer(it) ?: return@forEach
             if (winner == PlayerTeam.NONE)
+            {
                 player.sendTitle("&6${leftGroup.displayName} 与 ${rightGroup.displayName} 平局!".colored(), "", 10, 70, 20)
+                player.sendMessage("${GAME_RESULT_MESSAGE}{\"winner\":null}")
+            }
             else
-                player.sendTitle("&6${if (winner == PlayerTeam.LEFT) leftGroup.displayName else rightGroup.displayName} 获胜!".colored(), "", 10, 70, 20)
-
+            {
+                val winnerGroup = if (winner == PlayerTeam.LEFT) leftGroup.displayName else rightGroup.displayName
+                player.sendTitle("&6${winnerGroup} 获胜!".colored(), "", 10, 70, 20)
+                player.sendMessage("${GAME_RESULT_MESSAGE}{\"winner\":\"${winner.name}\"}")
+            }
             player.inventory.clear()
         }
 

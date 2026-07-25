@@ -9,6 +9,7 @@ const val PLAYER_PREPARE_MESSAGE = "I'm ready!"
 const val GAME_PREPARED_MESSAGE = "Are you ready?"
 const val GAME_START_MESSAGE = "Game start: "
 const val GAME_END_MESSAGE = "Game over!"
+const val GAME_RESULT_MESSAGE = "Game result: "
 
 sealed interface Enemy
 {
