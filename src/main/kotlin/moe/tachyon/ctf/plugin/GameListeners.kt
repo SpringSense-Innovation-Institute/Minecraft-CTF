@@ -97,7 +97,12 @@ private fun onPlayerSetFlag(event: PlayerMoveEvent)
     updateStatisticData(world.practice)
     {
         if (!world.leftGroup.isPlayer || !world.rightGroup.isPlayer) return@updateStatisticData
-        val group = getPlayerGroup(player.name) ?: return@updateStatisticData
+        val group = when (team)
+        {
+            PlayerTeam.LEFT  -> (world.leftGroup as Group.PlayerGroup).id
+            PlayerTeam.RIGHT -> (world.rightGroup as Group.PlayerGroup).id
+            PlayerTeam.NONE  -> return@updateStatisticData
+        }
         getFlagTimes[group] = getFlagTimes.getOrDefault(group, 0) + 1
         playerGetFlagTimes[player.name] = playerGetFlagTimes.getOrDefault(player.name, 0) + 1
     }
@@ -133,7 +138,12 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
             updateStatisticData(world.practice)
             {
                 if (!world.leftGroup.isPlayer || !world.rightGroup.isPlayer) return@updateStatisticData
-                val group = getPlayerGroup(player.name) ?: return@updateStatisticData
+                val group = when (team)
+                {
+                    PlayerTeam.LEFT  -> (world.leftGroup as Group.PlayerGroup).id
+                    PlayerTeam.RIGHT -> (world.rightGroup as Group.PlayerGroup).id
+                    PlayerTeam.NONE  -> return@updateStatisticData
+                }
                 catchTimes[group] = catchTimes.getOrDefault(group, 0) + 1
                 playerCatchTimes[player.name] = playerCatchTimes.getOrDefault(player.name, 0) + 1
             }
@@ -145,7 +155,12 @@ private fun onPlayerCaught(event: PlayerMoveEvent)
             updateStatisticData(world.practice)
             {
                 if (!world.leftGroup.isPlayer || !world.rightGroup.isPlayer) return@updateStatisticData
-                val group = getPlayerGroup(entity.name) ?: return@updateStatisticData
+                val group = when (world.getPlayerTeam(entity.name))
+                {
+                    PlayerTeam.LEFT  -> (world.leftGroup as Group.PlayerGroup).id
+                    PlayerTeam.RIGHT -> (world.rightGroup as Group.PlayerGroup).id
+                    PlayerTeam.NONE  -> return@updateStatisticData
+                }
                 catchTimes[group] = catchTimes.getOrDefault(group, 0) + 1
                 playerCatchTimes[entity.name] = playerCatchTimes.getOrDefault(entity.name, 0) + 1
             }
@@ -179,7 +194,12 @@ private fun onPlayerRescue(event: PlayerMoveEvent)
     updateStatisticData(world.practice)
     {
         if (!world.leftGroup.isPlayer || !world.rightGroup.isPlayer) return@updateStatisticData
-        val group = getPlayerGroup(player.name) ?: return@updateStatisticData
+        val group = when (team)
+        {
+            PlayerTeam.LEFT  -> (world.leftGroup as Group.PlayerGroup).id
+            PlayerTeam.RIGHT -> (world.rightGroup as Group.PlayerGroup).id
+            PlayerTeam.NONE  -> return@updateStatisticData
+        }
         rescueTimes[group] = rescueTimes.getOrDefault(group, 0) + 1
         playerRescueTimes[player.name] = playerRescueTimes.getOrDefault(player.name, 0) + 1
     }

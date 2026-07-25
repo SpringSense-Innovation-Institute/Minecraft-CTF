@@ -189,9 +189,6 @@ fun HumanEntity.teleportToWorld(world: World = mainWorld)
     teleport(loc)
 }
 
-fun getPlayerGroup(player: String): Int? =
-    player.split("-").getOrNull(1)?.toIntOrNull()
-
 fun Material?.isBanner(): Boolean =
     this == Material.BLUE_BANNER || this == Material.RED_BANNER
 
@@ -211,6 +208,8 @@ data class StatisticData(
 )
 
 private val statisticFileLock = Any()
+
+private val statisticJson = Json { encodeDefaults = true }
 
 private val statisticsDir: File get() = BukkitPlugin.getInstance().dataFolder.resolve("statistics")
 
@@ -255,7 +254,7 @@ fun getStatisticData(name: String?): StatisticData = synchronized(statisticFileL
     if (!file.exists()) return StatisticData()
     return@synchronized runCatching()
     {
-        Json.decodeFromString<StatisticData>(file.readText())
+        statisticJson.decodeFromString<StatisticData>(file.readText())
     }.getOrElse()
     {
         StatisticData()
@@ -266,7 +265,7 @@ private fun saveStatisticData(name: String?, data: StatisticData) = synchronized
 {
     val file = getStatisticFile(name) ?: return@synchronized
     if (!file.parentFile.exists()) file.parentFile.mkdirs()
-    file.writeText(Json.encodeToString(data))
+    file.writeText(statisticJson.encodeToString(data))
 }
 
 fun updateStatisticData(
