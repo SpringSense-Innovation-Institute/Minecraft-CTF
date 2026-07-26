@@ -225,6 +225,13 @@ private fun onPlayerChat(event: AsyncPlayerChatEvent)
     }
 }
 
+@SubscribeEvent(priority = EventPriority.MONITOR, ignoreCancelled = true)
+private fun onPlayerCommand(event: PlayerCommandPreprocessEvent)
+{
+    if (event.message.lowercase().contains("game"))
+        event.isCancelled = true
+}
+
 @SubscribeEvent(ignoreCancelled = true)
 private fun onPlayerBreakBlock(event: BlockBreakEvent)
 {
