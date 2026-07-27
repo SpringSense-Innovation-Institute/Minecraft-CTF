@@ -33,6 +33,8 @@ data class MatchSetting(
 
 private val waitList = mutableMapOf<String, MatchSetting>()
 
+private const val MAX_GAMES_CREATED_PER_WAITLIST_PROCESS = 1
+
 fun addToWaitList(playerName: String, setting: MatchSetting) = synchronized(waitList)
 {
     waitList[playerName] = setting
@@ -56,6 +58,9 @@ private fun notifyMatchCreationFailure(error: Throwable, vararg playerNames: Str
 
 fun processWaitList() = synchronized(waitList)
 {
+    var createdGames = 0
+    fun canCreateGame() = createdGames < MAX_GAMES_CREATED_PER_WAITLIST_PROCESS
+
     val list = waitList.toList().sortedBy()
     {
         when (it.second.enemy)
@@ -108,6 +113,8 @@ fun processWaitList() = synchronized(waitList)
 
         if (setting.enemy is Enemy.Specific && (setting.enemy.group.isNone || setting.enemy.group.isBot))
         {
+            if (!canCreateGame()) continue
+
             try
             {
                 makeSelfGame(
@@ -117,6 +124,7 @@ fun processWaitList() = synchronized(waitList)
                     setting.playersPerGroup,
                     setting.mapType
                 )
+                createdGames++
             }
             catch (e: Throwable)
             {
@@ -128,6 +136,8 @@ fun processWaitList() = synchronized(waitList)
             continue
         }
 
+        if (!canCreateGame()) continue
+
         for (j in 0 until i)
         {
             val (playerName2, setting2, valid) = list[j]
@@ -138,6 +148,7 @@ fun processWaitList() = synchronized(waitList)
                 try
                 {
                     makeGame(playerName, setting, playerName2, setting2)
+                    createdGames++
                 }
                 catch (e: Throwable)
                 {
