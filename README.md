@@ -2,6 +2,7 @@
 
 [![Build](https://github.com/SpringSense-Innovation-Institute/Minecraft-CTF/actions/workflows/build.yml/badge.svg)](https://github.com/SpringSense-Innovation-Institute/Minecraft-CTF/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/SpringSense-Innovation-Institute/Minecraft-CTF)](https://github.com/SpringSense-Innovation-Institute/Minecraft-CTF/releases/latest)
+[![License](https://img.shields.io/github/license/SpringSense-Innovation-Institute/Minecraft-CTF)](./LICENSE)
 
 基于 Bukkit/Spigot 的 Capture The Flag（夺旗）游戏模式插件，使用 [TabooLib 6.3.0](https://github.com/TabooLib/taboolib) 框架开发，Kotlin 编写，目标 JVM 17，适配 Minecraft 1.21。
 
@@ -260,3 +261,7 @@ match enemy:<enemy> players:<count> map:<mapType>
 ### players.json / groups.json
 
 玩家注册信息（ID、名称、可选密码）与分组定义（ID、名称、成员列表）。可通过 Web 端或管理 API 管理，也可通过游戏内菜单操作。
+
+## 许可证
+
+本项目基于 [AGPL-3.0](./LICENSE) 许可证开源。
