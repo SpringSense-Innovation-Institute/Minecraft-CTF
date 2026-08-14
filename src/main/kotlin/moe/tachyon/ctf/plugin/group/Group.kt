@@ -255,8 +255,5 @@ private fun onPlayerJoin(event: PlayerJoinEvent)
     }
 }
 
-fun getPlayerGroup(playerName: String): GroupInfo?
-{
-    val groups = getGroups()
-    return groups.firstOrNull { it.players.any { p -> p.id == playerName } }
-}
+fun getPlayerGroup(playerName: String): GroupInfo? =
+    getGroups().firstOrNull { it.players.any { p -> p.id == playerName } }
