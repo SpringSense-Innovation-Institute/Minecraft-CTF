@@ -264,4 +264,4 @@ match enemy:<enemy> players:<count> map:<mapType>
 
 ## 许可证
 
-本项目基于 [AGPL-3.0](./LICENSE) 许可证开源。
+本项目基于 [AGPL-3.0](./LICENSE) 许可证开源。打包的第三方库声明见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
